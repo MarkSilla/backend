@@ -4,17 +4,19 @@ import LatestCollection from '../components/LatestCollection'
 import BestSeller from '../components/BestSeller'
 import OurPolicy from '../components/OurPolicy'
 import NewsletterBox from '../components/NewsletterBox'
+import Accessories from '../components/Accessories'
 
 const Home = () => {
   return (
     <div>
       <Hero />
-      <LatestCollection/>
-      <BestSeller/>
-      <OurPolicy/>
-      <NewsletterBox/>
+      <LatestCollection />
+      <Accessories /> 
+      <BestSeller />
+      <OurPolicy />
+      <NewsletterBox />
     </div>
-  )
-}
+  );
+};
 
 export default Home

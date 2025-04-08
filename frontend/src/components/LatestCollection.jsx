@@ -3,14 +3,17 @@ import { ShopContext } from '../context/ShopContext';
 import Title from './Title';
 import Productitem from './Productitem'; 
 
-
 const LatestCollection = () => {
   const { products } = useContext(ShopContext);
   const [latestProducts, setLatestProducts] = useState([]);
 
   useEffect(() => {
     if (products && products.length > 0) {
-      setLatestProducts(products.slice(0, 10));
+      
+      const filteredProducts = products.filter(
+        (item) => item.category !== 'Accessory' && item.subCategory !== 'Accessory'
+      );
+      setLatestProducts(filteredProducts.slice(0, 10)); 
     }
   }, [products]);
 

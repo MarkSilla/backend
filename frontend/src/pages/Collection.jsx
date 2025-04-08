@@ -38,30 +38,35 @@ const Collection = () => {
   };
 
   const applyFilter = () => {
-    let productsCopy = products.slice();
-
+    if (!products || !Array.isArray(products)) {
+      setFilteredProducts([]); // Set an empty array if products is undefined or not an array
+      return;
+    }
+  
+    let productsCopy = products.slice(); 
+  
     // Filter by category
     if (category.length > 0) {
       productsCopy = productsCopy.filter((item) => category.includes(item.category));
     }
-
+  
     // Filter by subCategory
     if (subCategory.length > 0) {
       productsCopy = productsCopy.filter((item) => subCategory.includes(item.subCategory));
     }
-
+  
     // Filter by department
     if (department.length > 0) {
       productsCopy = productsCopy.filter((item) => department.includes(item.department));
     }
-
+  
     // Filter by search query
     if (search) {
       productsCopy = productsCopy.filter((item) =>
         item.name.toLowerCase().includes(search.toLowerCase())
       );
     }
-
+  
     setFilteredProducts(productsCopy);
   };
 
@@ -69,10 +74,10 @@ const Collection = () => {
     let fpCopy = filteredProducts.slice();
     switch (sortType) {
       case 'low-high':
-        fpCopy.sort((a, b) => a.price - b.price); // Sort by price (low to high)
+        fpCopy.sort((a, b) => a.price - b.price); 
         break;
       case 'high-low':
-        fpCopy.sort((a, b) => b.price - a.price); // Sort by price (high to low)
+        fpCopy.sort((a, b) => b.price - a.price); 
         break;
       default:
         fpCopy = filteredProducts;
@@ -84,7 +89,7 @@ const Collection = () => {
 
   useEffect(() => {
     applyFilter();
-  }, [category, subCategory, department, search, products]); // Added search to dependencies
+  }, [category, subCategory, department, search, products]); 
 
   useEffect(() => {
     sortProduct();
@@ -128,6 +133,9 @@ const Collection = () => {
             </label>
             <label className='flex gap-2'>
               <input type='checkbox' className='w-3' value='Bottomwear' onChange={toggleSubCategory} /> Bottomwear
+            </label>
+            <label className='flex gap-2'>
+              <input type='checkbox' className='w-3' value='Accessory' onChange={toggleSubCategory} /> Accessory
             </label>
           </div>
         </div>

@@ -9,9 +9,9 @@ const productSchema = new mongoose.Schema({
     subCategory: { type: String, required: true },
     department: { type: Array, required: true },
     sizes: { type: Array, required: true },
-    bestSeller: { type: Boolean },
+    bestseller: { type: Boolean, default: false },
     date: { type: Number, required: true },
-    stock: { type: Number, required: true, default: 0 } // Added stock field
+    stock: { type: Number, required: true, default: 0 } 
 });
 
 const productModel = mongoose.models.product || mongoose.model('product', productSchema);

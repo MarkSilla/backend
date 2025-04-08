@@ -9,8 +9,12 @@ const Cart = () => {
   const [cartData, setCartData] = useState([]);
 
   useEffect(() => {
+    if (products.legth > 0) {
+     
+      
+    }
     const tempData = [];
-    for (const itemId in cartItems) { // Outer loop for item IDs
+    for (const itemId in cartItems) { 
       for (const size in cartItems[itemId]) {
         if (cartItems[itemId][size] > 0) {
           tempData.push({
@@ -22,7 +26,7 @@ const Cart = () => {
       }
     }
     setCartData(tempData);
-  }, [cartItems]);
+  }, [cartItems,products]);
 
   const Title = ({ text1, text2 }) => (
     <h2 className="font-bold text-3xl">

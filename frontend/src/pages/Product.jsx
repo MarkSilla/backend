@@ -1,8 +1,9 @@
 import React, { useEffect, useContext, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom'; // Import useNavigate
 import { ShopContext } from '../context/ShopContext';
 import { assets } from '../assets/assets';
 import RelatedProducts from '../components/RelatedProducts';
+import { toast } from 'react-toastify';
 
 const Product = () => {
   const { productId } = useParams();
@@ -10,6 +11,7 @@ const Product = () => {
   const [productData, setProductData] = useState(null);
   const [image, setImage] = useState('');
   const [size, setSize] = useState('');
+  const navigate = useNavigate(); // Initialize navigate
 
   useEffect(() => {
     const selectedProduct = products.find((item) => item._id === productId);
@@ -62,10 +64,20 @@ const Product = () => {
               ))}
             </div>
           </div>
-          <button 
-            onClick={() => addToCart(productData._id, size)} 
+
+          <button
+            onClick={() => {
+              if (productData.stock === 0) {
+                toast.error("This product is out of stock."); 
+                return; 
+              }
+              if (!size) {
+                toast.error("Please select a size before adding to cart."); 
+                return; 
+              }
+              addToCart(productData._id, size);
+            }}
             className='bg-black text-white px-8 py-3 text-sm active:bg-gray-700'
-            disabled={productData.stock === 0}
           >
             {productData.stock > 0 ? 'ADD TO CART' : 'OUT OF STOCK'}
           </button>
@@ -86,7 +98,7 @@ const Product = () => {
             <p>Uniform Xpress is Gordon College's exclusive online store for official uniforms, offering a seamless shopping experience with easy ordering, secure payments, and real-time tracking.</p>
           </div>
         </div>
-        <RelatedProducts category={productData.category} subCategory={productData.subCategory} department={productData.department}/>
+        <RelatedProducts category={productData.category} subCategory={productData.subCategory} department={productData.department} />
       </div>
     </div>
   ) : (

@@ -30,8 +30,8 @@ const addProduct = async (req, res) => {
             image: imagesUrl,
             date: Date.now(),
             department,
-            bestseller: bestseller === "true" ? true : false,
-            stock: Number(stock), // Added stock field
+            bestseller: bestseller === "true" || bestseller === true ? true : false,
+            stock: Number(stock), 
         };
 
         console.log(productData); 
