@@ -79,6 +79,26 @@ const payMongo = async (req, res) => {
     }
 };
 
+const markOrderAsReceived = async (req, res) => {
+    try {
+      const { orderId } = req.params;
+  
+      
+      const order = await orderModel.findById(orderId);
+      if (!order) {
+        return res.status(404).json({ success: false, message: "Order not found" });
+      }
+      
+      order.status = "Received";
+      await order.save();
+  
+      res.status(200).json({ success: true, message: "Order marked as received" });
+    } catch (error) {
+      console.error("Error marking order as received:", error);
+      res.status(500).json({ success: false, message: "Internal server error" });
+    }
+  };
+
 const allOrders = async (req, res) => { 
     try {
         const orders = await orderModel.find({})
@@ -107,4 +127,4 @@ const updateStatus = async (req, res) => {
 
 
 
-export { placeOrder, allOrders, payMongo, userOrders, updateStatus };
+export { placeOrder, allOrders, payMongo, userOrders, updateStatus, markOrderAsReceived };
