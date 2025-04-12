@@ -13,7 +13,7 @@ const Scanner = () => {
       'reader',
       {
         fps: 10, // Reduce frames per second for better accuracy
-        qrbox: { width: 400, height: 400 }, // Larger QR code scanning box
+        qrbox: { width: 300, height: 300 }, // Adjusted for responsiveness
         aspectRatio: 1.0, // Maintain a square aspect ratio
       },
       false
@@ -42,12 +42,15 @@ const Scanner = () => {
             { headers: { token: localStorage.getItem('token') } }
           );
 
+          console.log('Backend response:', response.data); // Log the backend response
+
           if (response.data.success) {
             toast.success('Order status updated to Order Received!');
           } else {
             toast.error(response.data.message || 'Failed to update order status');
           }
         } catch (error) {
+          console.error('Error details:', error); // Log the full error object
           if (error.name === 'SyntaxError') {
             console.error('Invalid QR code format:', decodedText);
             toast.error('Invalid QR code format. Please scan a valid QR code.');
@@ -58,12 +61,11 @@ const Scanner = () => {
         }
       },
       (error) => {
-        // Suppress "NotFoundException" errors when no QR code is detected
         if (error.name === 'NotFoundException') {
-          setErrorMessage('No QR code detected. Please ensure the QR code is visible and try again.');
+          // Suppress this error
+          return;
         } else {
           console.error('Error scanning QR code:', error);
-          toast.error('An error occurred while scanning the QR code.');
         }
       }
     );
@@ -74,11 +76,32 @@ const Scanner = () => {
   }, []);
 
   return (
-    <div className="text-center">
-      <h3 className="text-lg font-semibold mb-4">Scan QR Code</h3>
-      {isScanning && <p>Waiting for QR code...</p>} {/* Show loading message */}
-      {errorMessage && <p className="text-red-500">{errorMessage}</p>} {/* Show error message */}
-      <div id="reader" style={{ width: '500px', margin: '0 auto' }}></div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 px-4 sm:px-8">
+      <h3 className="text-xl sm:text-2xl font-semibold text-gray-800 text-center mb-6">
+        Scan QR Code
+      </h3>
+      {isScanning && (
+        <div className="flex flex-col items-center">
+          {/* Waiting Animation */}
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-gray-500 mb-4"></div>
+          <p className="text-center text-gray-500 text-sm sm:text-base">
+            Waiting for QR code...
+          </p>
+        </div>
+      )}
+      {errorMessage && (
+        <p className="text-center text-red-500 text-sm sm:text-base mb-4">
+          {errorMessage}
+        </p>
+      )}
+      <div
+        id="reader"
+        className="w-full max-w-[300px] sm:max-w-[400px] mx-auto border-2 border-dashed border-gray-300 rounded-lg"
+        style={{ height: 'auto' }}
+      ></div>
+      <p className="text-center text-gray-500 text-xs sm:text-sm mt-4">
+        Ensure the QR code is within the scanning area.
+      </p>
     </div>
   );
 };

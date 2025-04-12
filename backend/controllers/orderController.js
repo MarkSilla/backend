@@ -1,6 +1,6 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
-
+import productModel from "../models/productModel.js"; 
 
 const placeOrder = async (req, res) => {
     try {
@@ -9,6 +9,23 @@ const placeOrder = async (req, res) => {
         // Validate required fields
         if (!userId || !firstName || !lastName || !phone || !items || !amount || !department || !paymentMethod) {
             return res.status(400).json({ success: false, message: "All fields are required" });
+        }
+
+        // Reduce stock for each item in the order
+        for (const item of items) {
+            const product = await productModel.findById(item._id); // Find the product by ID
+            if (!product) {
+                return res.status(404).json({ success: false, message: `Product with ID ${item._id} not found` });
+            }
+
+            // Check if the product has enough stock
+            if (product.stock < item.quantity) {
+                return res.status(400).json({ success: false, message: `Not enough stock for product: ${product.name}` });
+            }
+
+            // Reduce the product stock
+            product.stock -= item.quantity;
+            await product.save();
         }
 
         // Create a new order
