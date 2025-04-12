@@ -5,13 +5,13 @@ import Title from '../components/Title';
 import Productitem from '../components/Productitem';
 
 const Collection = () => {
-  const { products, search } = useContext(ShopContext); // Access search from context
+  const { products, search } = useContext(ShopContext); 
   const [showFilter, setShowFilter] = useState(true);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [category, setCategory] = useState([]);
   const [subCategory, setSubCategory] = useState([]);
   const [department, setDepartment] = useState([]);
-  const [sortType, setSortType] = useState('relevant'); // Added state for sorting
+  const [sortType, setSortType] = useState('default'); 
 
   const toggleCategory = (e) => {
     if (category.includes(e.target.value)) {
@@ -42,31 +42,31 @@ const Collection = () => {
       setFilteredProducts([]); // Set an empty array if products is undefined or not an array
       return;
     }
-  
-    let productsCopy = products.slice(); 
-  
+
+    let productsCopy = products.slice();
+
     // Filter by category
     if (category.length > 0) {
       productsCopy = productsCopy.filter((item) => category.includes(item.category));
     }
-  
+
     // Filter by subCategory
     if (subCategory.length > 0) {
       productsCopy = productsCopy.filter((item) => subCategory.includes(item.subCategory));
     }
-  
+
     // Filter by department
     if (department.length > 0) {
       productsCopy = productsCopy.filter((item) => department.includes(item.department));
     }
-  
+
     // Filter by search query
     if (search) {
       productsCopy = productsCopy.filter((item) =>
         item.name.toLowerCase().includes(search.toLowerCase())
       );
     }
-  
+
     setFilteredProducts(productsCopy);
   };
 
@@ -74,23 +74,25 @@ const Collection = () => {
     let fpCopy = filteredProducts.slice();
     switch (sortType) {
       case 'low-high':
-        fpCopy.sort((a, b) => a.price - b.price); 
+        fpCopy.sort((a, b) => a.price - b.price);
         break;
       case 'high-low':
-        fpCopy.sort((a, b) => b.price - a.price); 
+        fpCopy.sort((a, b) => b.price - a.price);
         break;
       default:
-        fpCopy = filteredProducts;
+        fpCopy = products.slice();
         break;
     }
 
     setFilteredProducts(fpCopy);
   };
 
+  // Apply filters dynamically when filter-related states change
   useEffect(() => {
     applyFilter();
-  }, [category, subCategory, department, search, products]); 
+  }, [category, subCategory, department, search, products]);
 
+  // Apply sorting dynamically when sortType changes
   useEffect(() => {
     sortProduct();
   }, [sortType]);
@@ -165,9 +167,9 @@ const Collection = () => {
           <select
             className='border-2 border-gray-300 text-sm px-2 py-1'
             value={sortType}
-            onChange={(e) => setSortType(e.target.value)} // Fixed onChange handler
+            onChange={(e) => setSortType(e.target.value)}
           >
-            <option value="relevant">Sort by: Relevant</option>
+            <option value="default">Sort by: Relevant</option>
             <option value="low-high">Sort by: Low to High</option>
             <option value="high-low">Sort by: High to Low</option>
           </select>

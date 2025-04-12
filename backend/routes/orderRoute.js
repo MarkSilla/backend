@@ -1,5 +1,5 @@
 import express from 'express';
-import { placeOrder, allOrders, payMongo, userOrders, updateStatus, markOrderAsReceived } from '../controllers/orderController.js'; // Import the new controller
+import { placeOrder, allOrders, payMongo, userOrders, updateStatus } from '../controllers/orderController.js'; // Import the new controller
 import adminAuth from '../middleware/adminAuth.js';
 import authUser from '../middleware/auth.js';
 
@@ -17,6 +17,6 @@ orderRouter.post('/place', authUser, placeOrder);
 orderRouter.get('/userorders', authUser, userOrders);
 
 // QR Code Feature
-orderRouter.post('/received/:orderId', adminAuth, markOrderAsReceived);
+orderRouter.post('/received/:orderId', adminAuth, updateStatus );
 
 export default orderRouter;

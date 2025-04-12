@@ -6,17 +6,23 @@ import { backendUrl } from '../App';
 
 const Scanner = () => {
   const [isScanning, setIsScanning] = useState(true); // State to track scanning status
+  const [errorMessage, setErrorMessage] = useState(''); // State to track error messages
 
   useEffect(() => {
     const scanner = new Html5QrcodeScanner(
       'reader',
-      { fps: 10, qrbox: 300 }, // Increased qrbox size
+      {
+        fps: 10, // Reduce frames per second for better accuracy
+        qrbox: { width: 400, height: 400 }, // Larger QR code scanning box
+        aspectRatio: 1.0, // Maintain a square aspect ratio
+      },
       false
     );
 
     scanner.render(
       async (decodedText) => {
         setIsScanning(false); // Stop showing the loading message
+        setErrorMessage(''); // Clear any previous error messages
         console.log('Scanned result:', decodedText);
 
         try {
@@ -30,7 +36,12 @@ const Scanner = () => {
           }
 
           // Send the orderId to the backend
-          const response = await axios.post(`${backendUrl}/api/orders/received/${orderId}`);
+          const response = await axios.post(
+            `${backendUrl}/api/orders/status`,
+            { orderId, status: "Received" }, // Update status to "Received"
+            { headers: { token: localStorage.getItem('token') } }
+          );
+
           if (response.data.success) {
             toast.success('Order status updated to Order Received!');
           } else {
@@ -48,7 +59,9 @@ const Scanner = () => {
       },
       (error) => {
         // Suppress "NotFoundException" errors when no QR code is detected
-        if (error.name !== 'NotFoundException') {
+        if (error.name === 'NotFoundException') {
+          setErrorMessage('No QR code detected. Please ensure the QR code is visible and try again.');
+        } else {
           console.error('Error scanning QR code:', error);
           toast.error('An error occurred while scanning the QR code.');
         }
@@ -64,6 +77,7 @@ const Scanner = () => {
     <div className="text-center">
       <h3 className="text-lg font-semibold mb-4">Scan QR Code</h3>
       {isScanning && <p>Waiting for QR code...</p>} {/* Show loading message */}
+      {errorMessage && <p className="text-red-500">{errorMessage}</p>} {/* Show error message */}
       <div id="reader" style={{ width: '500px', margin: '0 auto' }}></div>
     </div>
   );

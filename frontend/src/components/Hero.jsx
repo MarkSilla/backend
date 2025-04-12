@@ -19,8 +19,8 @@ const Hero = () => {
         </div>
       </div>
       {/* Hero Right Side */}
-      <div className='w-full sm:w-1/2'>
-        <img className='w-full h-auto' src={assets.heroimg} alt='Gordon College Logo' />
+      <div className='w-full sm:w-1/2 flex items-center justify-center'>
+        <img className='w-2/3 h-auto' src={assets.GC_LOGO} alt='Gordon College Logo' />
       </div>
     </div>
   );

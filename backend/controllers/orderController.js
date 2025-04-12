@@ -14,9 +14,9 @@ const placeOrder = async (req, res) => {
         // Create a new order
         const newOrder = new orderModel({
             userId,
-            firstName, 
-            lastName,  
-            phone,     
+            firstName,
+            lastName,
+            phone,
             items,
             amount,
             department,
@@ -54,7 +54,7 @@ const payMongo = async (req, res) => {
             {
                 data: {
                     attributes: {
-                        amount: amount * 100, 
+                        amount: amount * 100,
                         description: description,
                     },
                 },
@@ -79,52 +79,56 @@ const payMongo = async (req, res) => {
     }
 };
 
-const markOrderAsReceived = async (req, res) => {
-    try {
-      const { orderId } = req.params;
-  
-      
-      const order = await orderModel.findById(orderId);
-      if (!order) {
-        return res.status(404).json({ success: false, message: "Order not found" });
-      }
-      
-      order.status = "Received";
-      await order.save();
-  
-      res.status(200).json({ success: true, message: "Order marked as received" });
-    } catch (error) {
-      console.error("Error marking order as received:", error);
-      res.status(500).json({ success: false, message: "Internal server error" });
-    }
-  };
-
-const allOrders = async (req, res) => { 
+const allOrders = async (req, res) => {
     try {
         const orders = await orderModel.find({})
-        res.json({success:true, orders})
+        res.json({ success: true, orders })
     } catch (error) {
         console.log(error)
-        res.json({success:false, message:error.message})
+        res.json({ success: false, message: error.message })
     }
 }
 
-const userOrders = async (req, res) => { 
+const userOrders = async (req, res) => {
     try {
-        const {userId} = req.body
+        const { userId } = req.body
 
-        const orders = await orderModel.find({userId})
-        res.json({success:true, orders})
+        const orders = await orderModel.find({ userId })
+        res.json({ success: true, orders })
     } catch (error) {
         console.log(error)
-        res.json({success:false, message:error.message})
+        res.json({ success: false, message: error.message })
     }
 }
 
-const updateStatus = async (req, res) => { 
+const updateStatus = async (req, res) => {
+    try {
+        const { orderId, status } = req.body;
 
-}
+        // Validate the required fields
+        if (!orderId || !status) {
+            return res.status(400).json({ success: false, message: "Order ID and status are required" });
+        }
+
+        // Update the order status
+        const updatedOrder = await orderModel.findByIdAndUpdate(orderId, { status }, { new: true });
+
+        if (!updatedOrder) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        // If the status is "Received", log the event
+        if (status === "Received") {
+            console.log(`Order ID: ${orderId} has been marked as Received.`);
+        }
+
+        res.json({ success: true, message: "Status updated successfully", order: updatedOrder });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
 
 
 
-export { placeOrder, allOrders, payMongo, userOrders, updateStatus, markOrderAsReceived };
+export { placeOrder, allOrders, payMongo, userOrders, updateStatus,};

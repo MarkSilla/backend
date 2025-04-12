@@ -4,23 +4,53 @@ import { assets } from '../assets/assets';
 
 const Sidebar = () => {
   return (
-    <div className='w-[18%] min-h-screen border-r-2'>
-      <div className='flex flex-col gap-4 pt-6 pl-[20%] text-[15px]'>
-        <NavLink className={'flex items-center gap-3 border border-gray-300 px-3 py-2 rounded-md'} to="/add">
-          <img className='w-5 h-5' src={assets.add_icon} alt="" />
-          <p className='hidden md:block'>Add Items</p>
+    <div className="w-[18%] min-h-screen bg-gray-100 border-r-2 shadow-md">
+      
+      {/* Sidebar Navigation */}
+      <div className="flex flex-col gap-4 pt-6 pl-[15%] text-[15px]">
+        <NavLink
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2 rounded-md ${
+              isActive ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-200'
+            }`
+          }
+          to="/add"
+        >
+          <img className="w-5 h-5" src={assets.add_icon} alt="Add Items" />
+          <p className="hidden md:block">Add Items</p>
         </NavLink>
-        <NavLink className={'flex items-center gap-3 border border-gray-300 px-3 py-2 rounded-md'} to="/list">
-          <img className='w-5 h-5' src={assets.order_icon} alt="" />
-          <p className='hidden md:block'>List Items</p>
+        <NavLink
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2 rounded-md ${
+              isActive ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-200'
+            }`
+          }
+          to="/list"
+        >
+          <img className="w-5 h-5" src={assets.order_icon} alt="List Items" />
+          <p className="hidden md:block">List Items</p>
         </NavLink>
-        <NavLink className={'flex items-center gap-3 border border-gray-300 px-3 py-2 rounded-md'} to="/orders">
-          <img className='w-5 h-5' src={assets.order_icon} alt="" />
-          <p className='hidden md:block'>Orders</p>
+        <NavLink
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2 rounded-md ${
+              isActive ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-200'
+            }`
+          }
+          to="/orders"
+        >
+          <img className="w-5 h-5" src={assets.order_icon} alt="Orders" />
+          <p className="hidden md:block">Orders</p>
         </NavLink>
-        <NavLink className={'flex items-center gap-3 border border-gray-300 px-3 py-2 rounded-md'} to="/scanner">
-          <img className='w-5 h-5' src={assets.scanner} alt="" />
-          <p className='hidden md:block'>Scanner</p>
+        <NavLink
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2 rounded-md ${
+              isActive ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-200'
+            }`
+          }
+          to="/scanner"
+        >
+          <img className="w-5 h-5" src={assets.scanner} alt="Scanner" />
+          <p className="hidden md:block">Scanner</p>
         </NavLink>
       </div>
     </div>

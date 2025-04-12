@@ -70,9 +70,6 @@ const PlaceOrder = () => {
         paymentMethod: method,
       };
   
-      // Debugging: Log orderData
-      console.log("Order Data:", orderData);
-  
       switch (method) {
         case 'gcash':
          
