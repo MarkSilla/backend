@@ -7,6 +7,7 @@ import { backendUrl } from '../App';
 const Scanner = () => {
   const [isScanning, setIsScanning] = useState(true); // State to track scanning status
   const [errorMessage, setErrorMessage] = useState(''); // State to track error messages
+  const [isProcessed, setIsProcessed] = useState(false); // State to prevent duplicate scans
 
   useEffect(() => {
     const scanner = new Html5QrcodeScanner(
@@ -21,6 +22,11 @@ const Scanner = () => {
 
     scanner.render(
       async (decodedText) => {
+        if (isProcessed) {
+          return; // Prevent duplicate processing
+        }
+
+        setIsProcessed(true); // Mark as processed to prevent duplicate scans
         setIsScanning(false); // Stop showing the loading message
         setErrorMessage(''); // Clear any previous error messages
         console.log('Scanned result:', decodedText);
@@ -32,6 +38,7 @@ const Scanner = () => {
 
           if (!orderId) {
             toast.error('Invalid QR code: Missing orderId');
+            setIsProcessed(false); // Allow scanning again
             return;
           }
 
@@ -45,9 +52,20 @@ const Scanner = () => {
           console.log('Backend response:', response.data); // Log the backend response
 
           if (response.data.success) {
-            toast.success('Order status updated to Order Received!');
+            if (response.data.status === "Received") {
+              // If the order is already marked as "Received"
+              toast.error('Error: This order has already been marked as Received.');
+            } else {
+              toast.success('Order status updated to Order Received!');
+            }
+            // Temporarily stop the scanner and restart it after a delay
+            setTimeout(() => {
+              setIsProcessed(false); // Allow scanning again
+              setIsScanning(true); // Restart scanning
+            }, 3000); // Restart after 3 seconds
           } else {
             toast.error(response.data.message || 'Failed to update order status');
+            setIsProcessed(false); // Allow scanning again
           }
         } catch (error) {
           console.error('Error details:', error); // Log the full error object
@@ -58,6 +76,7 @@ const Scanner = () => {
             console.error('Error updating order status:', error.response?.data || error.message);
             toast.error(error.response?.data?.message || 'Error updating order status');
           }
+          setIsProcessed(false); // Allow scanning again
         }
       },
       (error) => {
@@ -65,7 +84,7 @@ const Scanner = () => {
           // Suppress this error
           return;
         } else {
-          console.error('Error scanning QR code:', error);
+         
         }
       }
     );
@@ -73,7 +92,7 @@ const Scanner = () => {
     return () => {
       scanner.clear(); // Cleanup the scanner when the component unmounts
     };
-  }, []);
+  }, [isProcessed]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 px-4 sm:px-8">

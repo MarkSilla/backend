@@ -127,25 +127,33 @@ const updateStatus = async (req, res) => {
             return res.status(400).json({ success: false, message: "Order ID and status are required" });
         }
 
-        // Update the order status
-        const updatedOrder = await orderModel.findByIdAndUpdate(orderId, { status }, { new: true });
+        // Find the order by ID
+        const order = await orderModel.findById(orderId);
 
-        if (!updatedOrder) {
+        if (!order) {
             return res.status(404).json({ success: false, message: "Order not found" });
         }
 
-        // If the status is "Received", log the event
+        // Check if the status is already "Received"
+        if (order.status === "Received") {
+            return res.status(400).json({ success: false, message: "This order has already been marked as Received." });
+        }
+
+        // Update the order status
+        order.status = status;
+        await order.save();
+
+        // Log the event if the status is updated to "Received"
         if (status === "Received") {
             console.log(`Order ID: ${orderId} has been marked as Received.`);
         }
 
-        res.json({ success: true, message: "Status updated successfully", order: updatedOrder });
+        res.json({ success: true, message: "Status updated successfully", order });
     } catch (error) {
         console.log(error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
-
 
 
 export { placeOrder, allOrders, payMongo, userOrders, updateStatus,};
