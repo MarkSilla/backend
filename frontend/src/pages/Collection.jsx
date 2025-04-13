@@ -5,13 +5,14 @@ import Title from '../components/Title';
 import Productitem from '../components/Productitem';
 
 const Collection = () => {
-  const { products, search } = useContext(ShopContext); 
+  const { products, search } = useContext(ShopContext);
   const [showFilter, setShowFilter] = useState(true);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [category, setCategory] = useState([]);
   const [subCategory, setSubCategory] = useState([]);
+  const [program, setProgram] = useState([]);
   const [department, setDepartment] = useState([]);
-  const [sortType, setSortType] = useState('default'); 
+  const [sortType, setSortType] = useState('default');
 
   const toggleCategory = (e) => {
     if (category.includes(e.target.value)) {
@@ -29,11 +30,11 @@ const Collection = () => {
     }
   };
 
-  const toggleDepartment = (e) => {
-    if (department.includes(e.target.value)) {
-      setDepartment((prev) => prev.filter((item) => item !== e.target.value));
+  const toggleProgram = (e) => {
+    if (program.includes(e.target.value)) {
+      setProgram((prev) => prev.filter((item) => item !== e.target.value));
     } else {
-      setDepartment((prev) => [...prev, e.target.value]);
+      setProgram((prev) => [...prev, e.target.value]);
     }
   };
 
@@ -42,31 +43,31 @@ const Collection = () => {
       setFilteredProducts([]); // Set an empty array if products is undefined or not an array
       return;
     }
-
+  
     let productsCopy = products.slice();
-
+  
     // Filter by category
     if (category.length > 0) {
       productsCopy = productsCopy.filter((item) => category.includes(item.category));
     }
-
+  
     // Filter by subCategory
     if (subCategory.length > 0) {
       productsCopy = productsCopy.filter((item) => subCategory.includes(item.subCategory));
     }
-
-    // Filter by department
-    if (department.length > 0) {
-      productsCopy = productsCopy.filter((item) => department.includes(item.department));
+  
+    // Filter by program
+    if (program.length > 0) {
+      productsCopy = productsCopy.filter((item) => program.includes(item.program)); 
     }
-
+  
     // Filter by search query
     if (search) {
       productsCopy = productsCopy.filter((item) =>
         item.name.toLowerCase().includes(search.toLowerCase())
       );
     }
-
+  
     setFilteredProducts(productsCopy);
   };
 
@@ -87,10 +88,10 @@ const Collection = () => {
     setFilteredProducts(fpCopy);
   };
 
-  // Apply filters dynamically when filter-related states change
+  
   useEffect(() => {
     applyFilter();
-  }, [category, subCategory, department, search, products]);
+  }, [category, subCategory, department, search, products, program]);
 
   // Apply sorting dynamically when sortType changes
   useEffect(() => {
@@ -142,18 +143,18 @@ const Collection = () => {
           </div>
         </div>
 
-        {/* DEPARTMENT */}
+        {/* Program */}
         <div className={`border border-gray-300 pl-5 py-3 my-5 ${showFilter ? '' : 'hidden'} sm:block`}>
-          <p className='mb-3 text-sm font-medium'>DEPARTMENT</p>
+          <p className='mb-3 text-sm font-medium'>PROGRAM</p>
           <div className='flex flex-col gap-2 text-sm font-light text-gray-700'>
             <label className='flex gap-2'>
-              <input type='checkbox' className='w-3' value='BSIT' onChange={toggleDepartment} /> BSIT
+              <input type='checkbox' className='w-3' value="BSIT" onChange={toggleProgram} /> BSIT
             </label>
             <label className='flex gap-2'>
-              <input type='checkbox' className='w-3' value='BSCS' onChange={toggleDepartment} /> BSCS
+              <input type='checkbox' className='w-3' value="BSCS" onChange={toggleProgram} /> BSCS
             </label>
             <label className='flex gap-2'>
-              <input type='checkbox' className='w-3' value='BSEMC' onChange={toggleDepartment} /> BSEMC
+              <input type='checkbox' className='w-3' value="BSEMC" onChange={toggleProgram} /> BSEMC
             </label>
           </div>
         </div>

@@ -15,7 +15,8 @@ const Add = ({ token }) => {
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("Men");
   const [subCategory, setSubCategory] = useState("Topwear");
-  const [department, setDepartment] = useState("BSIT");
+  const [department, setDepartment] = useState("General");
+  const[program, setProgram] = useState("General");
   const [stock, setStocks] = useState(0);
   const [sizes, setSizes] = useState([]);
   const [bestseller, setBestseller] = useState(false);
@@ -32,6 +33,7 @@ const Add = ({ token }) => {
       formData.append("category", category);
       formData.append("subCategory", subCategory);
       formData.append("department", department);
+      formData.append("program", program);
       formData.append("bestseller", bestseller);
       formData.append("stock", stock);
       formData.append("sizes", JSON.stringify(sizes));
@@ -68,7 +70,7 @@ const Add = ({ token }) => {
     <form onSubmit={onSubmitHandler} className='flex flex-col w-full items-start gap-3'>
       {/* Upload Image Section */}
       <div>
-        <p className='mb-2'> Upload Image</p>
+        <p className='mb-2 font-semibold'> Upload Image</p>
         <div className='flex gap-2'>
           <label htmlFor="image1">
             <img className='w-20' src={!image1 ? assets.upload_area : URL.createObjectURL(image1)} alt="" />
@@ -94,7 +96,7 @@ const Add = ({ token }) => {
 
       {/* Product Name */}
       <div className='w-full'>
-        <p className='mb-2'>Product name</p>
+        <p className='mb-2 font-semibold'>Product name</p>
         <input
           onChange={(e) => setName(e.target.value)}
           value={name}
@@ -107,7 +109,7 @@ const Add = ({ token }) => {
 
       {/* Product Description */}
       <div className='w-full'>
-        <p className='mb-2'>Product description</p>
+        <p className='mb-2 font-semibold'>Product description</p>
         <textarea
           onChange={(e) => setDescription(e.target.value)}
           value={description}
@@ -120,14 +122,15 @@ const Add = ({ token }) => {
       {/* Product Category & Subcategory */}
       <div className='flex flex-col sm:flex-row gap-4 w-full sm:gap-8'>
         <div>
-          <p>Product category</p>
+          <p className='font-semibold'>Product category</p>
           <select onChange={(e) => setCategory(e.target.value)} className='w-full px-3 py-2 border rounded'>
             <option value="Men">Men</option>
             <option value="Women">Women</option>
+            <option value="Unisex">Unisex</option>
           </select>
         </div>
         <div>
-          <p className='mb-2'>Sub category</p>
+          <p className='mb-2 font-semibold'>Sub category</p>
           <select onChange={(e) => setSubCategory(e.target.value)} className='w-full px-3 py-2 border rounded'>
             <option value="Topwear">Topwear</option>
             <option value="Bottomwear">Bottomwear</option>
@@ -135,18 +138,30 @@ const Add = ({ token }) => {
           </select>
         </div>
         <div>
-          <p className='mb-2'>Department</p>
+          <p className='mb-2 font-semibold'>Department</p>
           <select onChange={(e) => setDepartment(e.target.value)} className='w-full px-3 py-2 border rounded'>
+            <option value="CHAS">CHAS</option>
+            <option value="CBA">CBA</option>
+            <option value="CCS">CCS</option>
+            <option value="CEAS">CEAS</option>
+            <option value="CHTM">CHTM</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+        <div>
+          <p className='mb-2 font-semibold'>Program</p>
+          <select onChange={(e) => setProgram(e.target.value)} className='w-full px-3 py-2 border rounded'>
             <option value="BSIT">BSIT</option>
             <option value="BSCS">BSCS</option>
             <option value="BSEMC">BSEMC</option>
+            <option value="General">General</option>
           </select>
         </div>
       </div>
 
       {/* Product Stock */}
       <div className='w-full'>
-        <p className='mb-2'>Product Stock</p>
+        <p className='mb-2 font-semibold'>Product Stock</p>
         <input
           onChange={(e) => setStocks(e.target.value)}
           value={stock}
@@ -159,7 +174,7 @@ const Add = ({ token }) => {
 
       {/* Product Price */}
       <div className='w-full'>
-        <p className='mb-2'>Product Price</p>
+        <p className='mb-2 font-semibold'>Product Price</p>
         <input
           onChange={(e) => setPrice(e.target.value)}
           value={price}
@@ -172,7 +187,7 @@ const Add = ({ token }) => {
 
       {/* Product Sizes */}
       <div>
-        <p className='mb-2'>Product Sizes</p>
+        <p className='mb-2 font-semibold'>Product Sizes</p>
         <div className='flex gap-3'>
           <div onClick={() => setSizes((prev) => prev.includes("S") ? prev.filter((item) => item !== "S") : [...prev, "S"])}>
             <p className={`${sizes.includes("S") ? "bg-blue-100" : "bg-slate-200"} px-4 py-2 rounded cursor-pointer`}>S</p>
@@ -196,7 +211,7 @@ const Add = ({ token }) => {
       <div className='flex gap-2 mt-2'>
         <input
           onChange={() => setBestseller((prev) => !prev)} type="checkbox" id='bestseller' checked={bestseller}/>
-        <label className='cursor-pointer' htmlFor="bestseller">Add to bestseller</label>
+        <label className='cursor-pointer font-semibold' htmlFor="bestseller">Add to bestseller</label>
       </div>
 
       {/* Submit Button */}

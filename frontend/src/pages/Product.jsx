@@ -67,13 +67,21 @@ const Product = () => {
 
           <button
             onClick={() => {
+
+              const isLoggedIn = !!localStorage.getItem('token'); 
+
+              if (!isLoggedIn) {
+                toast.error("You need to log in to add items to the cart.");
+                navigate('/login'); 
+                return;
+              } 
               if (productData.stock === 0) {
-                toast.error("This product is out of stock."); 
-                return; 
+                toast.error("This product is out of stock.");
+                return;
               }
               if (!size) {
-                toast.error("Please select a size before adding to cart."); 
-                return; 
+                toast.error("Please select a size before adding to cart.");
+                return;
               }
               addToCart(productData._id, size);
             }}
