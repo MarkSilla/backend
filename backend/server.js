@@ -8,7 +8,6 @@ import productRouter from './routes/productRoute.js'
 import cartRouter from './routes/cartRoute.js'
 import orderRouter from './routes/orderRoute.js'
 
-
 // App config 
 const app = express()
 const port = process.env.PORT || 4000
@@ -29,5 +28,8 @@ app.use('/api/orders', orderRouter)
 app.get('/',(req, res) => {
     res.send("API Working")
 })
+app.listen(5000, '0.0.0.0', () => {
+    console.log('Server is running on port 5000');
+  });
 
-export default app;
+app.listen(port, () =>console.log('Server started on PORT : ' + port))
