@@ -41,7 +41,7 @@ const loginUser = async (req, res) => {
 // ito naman sa user registration
 const registerUser = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { firstName,lastName,department, program, email, password } = req.body;
         //check kung user is nag eexist
         const exists = await userModel.findOne({ email });
         if (exists) {
@@ -61,7 +61,7 @@ const registerUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt)
 
         const newUser = new userModel({
-            name, email, password: hashedPassword
+            firstName, lastName, email, department, program, password: hashedPassword
         })
 
         const user = await newUser.save()
@@ -95,4 +95,33 @@ const adminLogin = async (req, res) => {
     }
 };
 
-export {loginUser, registerUser, adminLogin};
+// Function to get user details
+const getUserDetails = async (req, res) => {
+    try {
+        console.log('Fetching user details for:', req.user);
+
+        // Use req.user if the user is already attached by the authUser middleware
+        const user = req.user;
+
+        if (!user) {
+            console.error('User not found in request');
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            user: {
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email,
+                department: user.department,
+                program: user.program,
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching user details:', error.message);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+export { loginUser, registerUser, adminLogin, getUserDetails };

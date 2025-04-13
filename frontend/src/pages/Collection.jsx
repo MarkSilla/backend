@@ -43,31 +43,31 @@ const Collection = () => {
       setFilteredProducts([]); // Set an empty array if products is undefined or not an array
       return;
     }
-  
+
     let productsCopy = products.slice();
-  
+
     // Filter by category
     if (category.length > 0) {
       productsCopy = productsCopy.filter((item) => category.includes(item.category));
     }
-  
+
     // Filter by subCategory
     if (subCategory.length > 0) {
       productsCopy = productsCopy.filter((item) => subCategory.includes(item.subCategory));
     }
-  
+
     // Filter by program
     if (program.length > 0) {
-      productsCopy = productsCopy.filter((item) => program.includes(item.program)); 
+      productsCopy = productsCopy.filter((item) => program.includes(item.program));
     }
-  
+
     // Filter by search query
     if (search) {
       productsCopy = productsCopy.filter((item) =>
         item.name.toLowerCase().includes(search.toLowerCase())
       );
     }
-  
+
     setFilteredProducts(productsCopy);
   };
 
@@ -88,7 +88,7 @@ const Collection = () => {
     setFilteredProducts(fpCopy);
   };
 
-  
+
   useEffect(() => {
     applyFilter();
   }, [category, subCategory, department, search, products, program]);
@@ -124,6 +124,9 @@ const Collection = () => {
             <label className='flex gap-2'>
               <input type='checkbox' className='w-3' value='Women' onChange={toggleCategory} /> Women
             </label>
+            <label className='flex gap-2'>
+              <input type='checkbox' className='w-3' value='Unisex' onChange={toggleCategory} /> Unisex
+            </label>
           </div>
         </div>
 
@@ -155,6 +158,9 @@ const Collection = () => {
             </label>
             <label className='flex gap-2'>
               <input type='checkbox' className='w-3' value="BSEMC" onChange={toggleProgram} /> BSEMC
+            </label>
+            <label className='flex gap-2'>
+              <input type='checkbox' className='w-3' value="General" onChange={toggleProgram} /> General
             </label>
           </div>
         </div>

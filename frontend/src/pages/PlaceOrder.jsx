@@ -1,5 +1,5 @@
-import React, { useContext, useState } from 'react';
-import axios from 'axios'; 
+import React, { useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 import Title from '../components/Title';
 import CartTotal from '../components/CartTotal';
 import { assets } from '../assets/assets';
@@ -28,21 +28,21 @@ const PlaceOrder = () => {
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
-   
+
     try {
       // Validate cartItems and products
       if (!cartItems || Object.keys(cartItems).length === 0) {
         toast.error("Cart items are empty");
         return;
       }
-  
+
       if (!products || products.length === 0) {
         toast.error("Products are empty");
         return;
       }
-  
+
       let orderItems = [];
-  
+
       // Process cart items
       for (const items in cartItems) {
         for (const item in cartItems[items]) {
@@ -58,23 +58,23 @@ const PlaceOrder = () => {
           }
         }
       }
-  
+
       let orderData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         department: formData.department,
-        program: formData.program, 
-        phone: formData.phone,     
+        program: formData.program,
+        phone: formData.phone,
         items: orderItems,
         amount: getCartAmount() + delivery_fee,
         paymentMethod: method,
       };
-  
+
       switch (method) {
         case 'gcash':
-         
+          // Handle GCASH payment logic here
           break;
-  
+
         case 'on-site-payment':
           const response = await axios.post(
             `${backendUrl}/api/orders/place`,
@@ -88,9 +88,9 @@ const PlaceOrder = () => {
             toast.error(response.data.message);
           }
           break;
-  
+
         default:
-         toast.error("Invalid payment method");
+          toast.error("Invalid payment method");
           orderData.paymentMethod = 'on-site-payment';
       }
     } catch (error) {
@@ -101,6 +101,33 @@ const PlaceOrder = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await axios.get(`${backendUrl}/api/user/getuser`, {
+          headers: { token },
+        });
+        if (response.data.success) {
+          setFromData((prev) => ({
+            ...prev,
+            firstName: response.data.user.firstName,
+            lastName: response.data.user.lastName,
+            email: response.data.user.email,
+            department: response.data.user.department,
+            program: response.data.user.program,
+          }));
+        } else {
+          toast.error("Failed to fetch user data");
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        toast.error("An error occurred while fetching user data");
+      }
+    };
+
+    fetchUserData();
+  }, [backendUrl, token]);
+
   return (
     <form onSubmit={onSubmitHandler} className="flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t">
       {/* ================= Left side ================= */}
@@ -109,75 +136,96 @@ const PlaceOrder = () => {
           <Title text1={'DELIVERY'} text2={'INFORMATION'} />
         </div>
         <div className="flex gap-3">
+          <div className="flex flex-col w-full">
+            <label htmlFor="firstName" className="text-sm font-medium text-black-700 font-semibold">
+              First Name
+            </label>
+            <input
+              required
+              id="firstName"
+              name="firstName"
+              value={formData.firstName}
+              className="border border-gray-300 rounded py-1.5 px-3.5 w-full bg-gray-100 cursor-not-allowed"
+              type="text"
+              readOnly
+            />
+          </div>
+          <div className="flex flex-col w-full">
+            <label htmlFor="lastName" className="text-sm font-medium text-black-700 font-semibold">
+              Last Name
+            </label>
+            <input
+              required
+              id="lastName"
+              name="lastName"
+              value={formData.lastName}
+              className="border border-gray-300 rounded py-1.5 px-3.5 w-full bg-gray-100 cursor-not-allowed"
+              type="text"
+              readOnly
+            />
+          </div>
+        </div>
+        <div className="flex flex-col">
+          <label htmlFor="email" className="text-sm font-medium text-black-700 font-semibold">
+            Email
+          </label>
           <input
             required
-            onChange={onChangeHandler}
-            name="firstName"
-            value={formData.firstName}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+            id="email"
+            name="email"
+            value={formData.email}
+            className="border border-gray-300 rounded py-1.5 px-3.5 w-full bg-gray-100 cursor-not-allowed"
             type="text"
-            placeholder="First Name"
-          />
-          <input
-            required
-            onChange={onChangeHandler}
-            name="lastName"
-            value={formData.lastName}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-            type="text"
-            placeholder="Last Name"
+            readOnly
           />
         </div>
-        <input
-          required
-          onChange={onChangeHandler}
-          name="email"
-          value={formData.email}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          type="text"
-          placeholder="Email"
-        />
         <div className="flex gap-3">
-          <select
-            required
-            onChange={onChangeHandler}
-            name="department"
-            value={formData.department}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          >
-            <option value="" disabled className="text-gray-400">
-              Select Department
-            </option>
-            <option value="CAHS">CAHS</option>
-            <option value="CBA">CBA</option>
-            <option value="CCS">CCS</option>
-            <option value="CEAS">CEAS</option>
-            <option value="CHTM">CHTM</option>
-          </select>
-          <select
-            required
-            onChange={onChangeHandler}
-            name="program" // Corrected name attribute
-            value={formData.program}
-            className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          >
-            <option value="" disabled className="text-gray-400">
-              Select Program
-            </option>
-            <option value="BSIT">BSIT</option>
-            <option value="BSCS">BSCS</option>
-            <option value="BSEMC">BSEMC</option>
-          </select>
+          <div className="flex flex-col w-full">
+            <label htmlFor="department" className="text-sm font-medium text-black-700 font-semibold">
+              Department
+            </label>
+            <input
+              required
+              id="department"
+              name="department"
+              value={formData.department}
+              className="border border-gray-300 rounded py-1.5 px-3.5 w-full bg-gray-100 cursor-not-allowed"
+              type="text"
+              readOnly
+            />
+          </div>
+          <div className="flex flex-col w-full">
+            <label htmlFor="program" className="text-sm font-medium text-black-700 font-semibold">
+              Program
+            </label>
+            <input
+              required
+              id="program"
+              name="program"
+              value={formData.program}
+              className="border border-gray-300 rounded py-1.5 px-3.5 w-full bg-gray-100 cursor-not-allowed"
+              type="text"
+              readOnly
+            />
+          </div>
         </div>
-        <input
-          required
-          onChange={onChangeHandler}
-          name="phone"
-          value={formData.phone}
-          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
-          type="number"
-          placeholder="Phone Number"
-        />
+        <div className="flex flex-col space-y-1">
+          <label htmlFor="phone" className="text-sm font-medium text-black-700 font-semibold">
+            Phone Number
+          </label>
+          <input
+            required
+            onChange={onChangeHandler}
+            id="phone"
+            name="phone"
+            value={formData.phone}
+            className="border border-gray-300 rounded-md py-2 px-4 w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            type="tel"
+            placeholder="Phone Number"
+            inputMode="numeric"
+            pattern="[0-9]*"
+          />
+        </div>
       </div>
       {/* ================= Right side ================= */}
       <div>
