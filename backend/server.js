@@ -28,3 +28,5 @@ app.use('/api/orders', orderRouter)
 app.get('/',(req, res) => {
     res.send("API Working")
 })
+
+export default app;
