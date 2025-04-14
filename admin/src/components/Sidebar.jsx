@@ -4,53 +4,103 @@ import { assets } from '../assets/assets';
 
 const Sidebar = () => {
   return (
-    <div className="w-[18%] min-h-screen bg-gray-100 border-r-2 shadow-md">
-      
-      {/* Sidebar Navigation */}
-      <div className="flex flex-col gap-4 pt-6 pl-[15%] text-[15px]">
+    <div className="w-[18%] min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 border-r border-blue-200 shadow-lg flex flex-col">
+      {/* Sidebar Navigation Links */}
+      <div className="flex flex-1 flex-col gap-3 px-4 py-2 text-[15px]">
         <NavLink
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2 rounded-md ${
-              isActive ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-200'
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive
+                ? 'bg-blue-500 text-white shadow-md shadow-blue-300'
+                : 'text-gray-700 hover:bg-blue-200/50 hover:text-blue-800'
             }`
           }
           to="/add"
         >
-          <img className="w-5 h-5" src={assets.add_icon} alt="Add Items" />
-          <p className="hidden md:block">Add Items</p>
+          {({ isActive }) => (
+            <>
+              <div
+                className={`flex items-center justify-center w-8 h-8 rounded-md bg-opacity-90 ${
+                  isActive ? 'bg-white/20' : 'bg-blue-100'
+                }`}
+              >
+                <img className="w-5 h-5" src={assets.add_icon} alt="Add Items" />
+              </div>
+              <p className="font-medium hidden lg:block">Add Items</p>
+            </>
+          )}
         </NavLink>
+
         <NavLink
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2 rounded-md ${
-              isActive ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-200'
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive
+                ? 'bg-blue-500 text-white shadow-md shadow-blue-300'
+                : 'text-gray-700 hover:bg-blue-200/50 hover:text-blue-800'
             }`
           }
           to="/list"
         >
-          <img className="w-5 h-5" src={assets.order_icon} alt="List Items" />
-          <p className="hidden md:block">List Items</p>
+          {({ isActive }) => (
+            <>
+              <div
+                className={`flex items-center justify-center w-8 h-8 rounded-md bg-opacity-90 ${
+                  isActive ? 'bg-white/20' : 'bg-blue-100'
+                }`}
+              >
+                <img className="w-5 h-5" src={assets.order_icon} alt="List Items" />
+              </div>
+              <p className="font-medium hidden lg:block">List Items</p>
+            </>
+          )}
         </NavLink>
+
         <NavLink
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2 rounded-md ${
-              isActive ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-200'
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive
+                ? 'bg-blue-500 text-white shadow-md shadow-blue-300'
+                : 'text-gray-700 hover:bg-blue-200/50 hover:text-blue-800'
             }`
           }
           to="/orders"
         >
-          <img className="w-5 h-5" src={assets.order_icon} alt="Orders" />
-          <p className="hidden md:block">Orders</p>
+          {({ isActive }) => (
+            <>
+              <div
+                className={`flex items-center justify-center w-8 h-8 rounded-md bg-opacity-90 ${
+                  isActive ? 'bg-white/20' : 'bg-blue-100'
+                }`}
+              >
+                <img className="w-5 h-5" src={assets.order_icon} alt="Orders" />
+              </div>
+              <p className="font-medium hidden lg:block">Orders</p>
+            </>
+          )}
         </NavLink>
+
         <NavLink
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2 rounded-md ${
-              isActive ? 'bg-blue-500 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-200'
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              isActive
+                ? 'bg-blue-500 text-white shadow-md shadow-blue-300'
+                : 'text-gray-700 hover:bg-blue-200/50 hover:text-blue-800'
             }`
           }
           to="/scanner"
         >
-          <img className="w-5 h-5" src={assets.scanner} alt="Scanner" />
-          <p className="hidden md:block">Scanner</p>
+          {({ isActive }) => (
+            <>
+              <div
+                className={`flex items-center justify-center w-8 h-8 rounded-md bg-opacity-90 ${
+                  isActive ? 'bg-white/20' : 'bg-blue-100'
+                }`}
+              >
+                <img className="w-5 h-5" src={assets.scanner} alt="Scanner" />
+              </div>
+              <p className="font-medium hidden lg:block">Scanner</p>
+            </>
+          )}
         </NavLink>
       </div>
     </div>

@@ -32,10 +32,10 @@ const addProduct = async (req, res) => {
             department,
             program,
             bestseller: bestseller === "true" || bestseller === true ? true : false,
-            stock: Number(stock), 
+            stock: Number(stock),
         };
 
-        console.log(productData); 
+        console.log(productData);
         const product = new productModel(productData);
         await product.save();
 
@@ -114,4 +114,26 @@ const updateStock = async (req, res) => {
     }
 };
 
-export { listProducts, addProduct, removeProduct, singleProduct, updateStock };
+const edit = async (req, res) => {
+    try {
+        const { id, name, description, price, sizes, stock } = req.body; // Include 'id' here
+
+        const productData = {
+            name,
+            description,
+            price: Number(price),
+            sizes: JSON.parse(sizes),
+            date: Date.now(),
+            stock: Number(stock),
+        };
+
+        // Use the 'id' to find and update the product
+        await productModel.findByIdAndUpdate(id, productData);
+        res.json({ success: true, message: "Product Updated" });
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+export { listProducts, addProduct, removeProduct, singleProduct, updateStock, edit };
