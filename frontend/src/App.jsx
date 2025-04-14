@@ -11,6 +11,8 @@ import Product from './pages/Product';
 import Cart from './pages/Cart';
 import Navbar from './components/Navbar';
 import ShopContextProvider from './context/ShopContext';
+import Privacy from './pages/PrivacyPolicy';
+import Terms from './pages/Terms';
 import Footer from './components/Footer';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -31,6 +33,8 @@ const App = () => {
           <Route path='/login' element={<Login />} />
           <Route path='/place-order' element={<PlaceOrder />} />
           <Route path='/orders' element={<Orders />} />
+          <Route path='/privacy' element={<Privacy/>} />
+          <Route path='/terms' element={<Terms/>} />
         </Routes>
         <Footer />
       </div>

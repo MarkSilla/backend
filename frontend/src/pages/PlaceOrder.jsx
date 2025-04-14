@@ -4,6 +4,7 @@ import CartTotal from '../components/CartTotal';
 import { assets } from '../assets/assets';
 import { ShopContext } from '../context/ShopContext';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 import { Phone, CreditCard, CheckCircle, AlertCircle } from 'lucide-react';
 
 const PlaceOrder = () => {
@@ -356,7 +357,8 @@ const PlaceOrder = () => {
                 )}
               </button>
               <p className="text-xs text-center text-gray-500 mt-2">
-                By placing your order, you agree to our Terms of Service
+                By placing your order, you agree to our {''} 
+                <Link to= "/terms" className="text-blue-600 hover:underline" >Terms of Service.</Link>
               </p>
             </div>
           </div>
