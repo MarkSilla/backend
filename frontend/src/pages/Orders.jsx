@@ -19,7 +19,7 @@ const Orders = () => {
       const response = await axios.get(`${backendUrl}/api/orders/userorders`, {
         headers: { token },
       });
-
+  
       if (response.data.success) {
         const allOrdersItem = response.data.orders.flatMap((order) =>
           order.items.map((item) => ({
@@ -29,9 +29,11 @@ const Orders = () => {
             paymentMethod: order.paymentMethod,
             date: order.date,
             orderId: order._id,
+            appointmentDate: order.appointmentDate, 
+            appointmentTime: order.appointmentTime,
           }))
         );
-
+  
         setOrderData(allOrdersItem.reverse());
       } else {
         toast.error(response.data.message);
@@ -162,48 +164,110 @@ const Orders = () => {
                       </div>
                     </div>
 
+                    {/* Order Info Section - Rearranged to have order date under payment method */}
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <svg
-                          className="w-4 h-4 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          ></path>
-                        </svg>
-                        <span>
-                          {item.date
-                            ? new Date(item.date).toLocaleDateString('en-US', {
+                      {/* Left Column - Payment Method and Order Date */}
+                      <div className="space-y-2">
+                        {/* Payment Method */}
+                        <div className="flex items-center">
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                            ></path>
+                          </svg>
+                          <span>
+                            Payment Method: {item.paymentMethod || 'Not Available'}
+                          </span>
+                        </div>
+                        
+                        {/* Order Date */}
+                        <div className="flex items-center">
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            ></path>
+                          </svg>
+                          <span>
+                            Order Date:{' '}
+                            {item.date
+                              ? new Date(item.date).toLocaleDateString('en-US', {
                                 year: 'numeric',
                                 month: 'short',
                                 day: 'numeric',
                               })
-                            : 'Unknown Date'}
-                        </span>
+                              : 'Not Available'}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center">
-                        <svg
-                          className="w-4 h-4 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                          ></path>
-                        </svg>
-                        <span>{item.paymentMethod || 'Unknown Payment Method'}</span>
+                      
+                      {/* Right Column - Appointment Date and Time */}
+                      <div className="space-y-2">
+                        {/* Appointment Date */}
+                        <div className="flex items-center">
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            ></path>
+                          </svg>
+                          <span>
+                            Appointed Date:{' '}
+                            {item.appointmentDate
+                              ? new Date(item.appointmentDate).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                              : 'Pending'}
+                          </span>
+                        </div>
+                        
+                        {/* Appointment Time with Clock Icon */}
+                        <div className="flex items-center">
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            ></path>
+                          </svg>
+                          <span>
+                            Appointed Time: {item.appointmentTime || 'Pending'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

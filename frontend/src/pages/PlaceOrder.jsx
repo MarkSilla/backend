@@ -170,12 +170,8 @@ const PlaceOrder = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                  First Name
-                </label>
-                <input
-                  id="firstName"
-                  name="firstName"
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <input id="firstName" name="firstName"
                   value={formData.firstName}
                   className="w-full px-4 py-2 border border-gray-300 rounded bg-gray-50 text-gray-500 cursor-not-allowed"
                   type="text"

@@ -3,6 +3,8 @@ import axios from 'axios';
 import { backendUrl, currency } from '../App';
 import { toast } from 'react-toastify';
 import { assets } from '../assets/assets';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable'; 
 
 const Orders = ({ token }) => {
   const [orders, setOrders] = useState([]);
@@ -37,6 +39,130 @@ const Orders = ({ token }) => {
     }
   };
 
+  // Replace your current generateReceipt function with this one
+const generateReceipt = (order) => {
+  try {
+    console.log("Starting receipt generation...");
+    // Import jsPDF and jspdf-autotable if not already imported
+    // Make sure they're properly defined and accessible
+    
+    const doc = new jsPDF();
+    console.log("PDF document created");
+    
+    // Add receipt title
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFontSize(22);
+    doc.setTextColor(44, 62, 80); // Dark blue-gray
+    doc.text("ORDER RECEIPT", pageWidth / 2, 20, { align: 'center' });
+    console.log("Added title");
+  
+    // Add a subtle line below the title
+    doc.setDrawColor(52, 152, 219); // Blue
+    doc.setLineWidth(0.5);
+    doc.line(20, 25, pageWidth - 20, 25);
+  
+    // Add order details
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Order ID: ${order._id}`, 20, 40);
+    doc.text(`Customer Name: ${order.firstName} ${order.lastName}`, 20, 50);
+    doc.text(`Order Date: ${new Date(order.date).toLocaleDateString()}`, 20, 60);
+    doc.text(`Status: ${order.status}`, 20, 70);
+    doc.text(`Payment Status: ${order.payment === 'paid' ? 'Paid' : 'Pending'}`, 20, 80);
+    console.log("Added order details");
+    
+    // Check if the autotable plugin is properly loaded
+    if (typeof doc.autoTable !== 'function') {
+      console.error("jsPDF-AutoTable plugin is not properly loaded!");
+      // If autotable is not available, create a simpler table manually
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      
+      // Draw table headers manually
+      doc.setFont(undefined, 'bold');
+      doc.text("Item", 20, 100);
+      doc.text("Size", 70, 100);
+      doc.text("Qty", 100, 100);
+      doc.text("Price", 120, 100);
+      doc.text("Total", 160, 100);
+      doc.setFont(undefined, 'normal');
+      
+      // Draw lines for the header row
+      doc.line(20, 102, 180, 102);
+      
+      // Draw table rows manually
+      let currentY = 110;
+      order.items.forEach((item, index) => {
+        doc.text(item.name, 20, currentY);
+        doc.text(item.size || '-', 70, currentY);
+        doc.text(item.quantity.toString(), 100, currentY);
+        doc.text(`${currency} ${item.price.toFixed(2)}`, 120, currentY);
+        doc.text(`${currency} ${(item.price * item.quantity).toFixed(2)}`, 160, currentY);
+        currentY += 10;
+      });
+      
+      // Add total amount
+      currentY += 10;
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(44, 62, 80);
+      doc.text(`Total Amount: ${currency} ${order.amount.toFixed(2)}`, pageWidth - 20, currentY, { align: 'right' });
+    } else {
+      // If autotable is available, use it
+      console.log("Using autoTable plugin");
+      // Add table headers and rows
+      const tableColumn = ["Item", "Size", "Qty", "Price", "Total"];
+      const tableRows = order.items.map((item) => [
+        item.name,
+        item.size || '-',
+        item.quantity,
+        `${currency} ${item.price.toFixed(2)}`,
+        `${currency} ${(item.price * item.quantity).toFixed(2)}`
+      ]);
+    
+      // Add the table to the document
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 90,
+        theme: 'grid',
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+          lineColor: [220, 220, 220],
+        },
+        headStyles: {
+          fillColor: [52, 152, 219],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [240, 240, 240],
+        },
+      });
+    
+      // Calculate final Y position after table
+      const finalY = doc.previousAutoTable.finalY + 10;
+    
+      // Add total amount
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(44, 62, 80);
+      doc.text(`Total Amount: ${currency} ${order.amount.toFixed(2)}`, pageWidth - 20, finalY, { align: 'right' });
+    }
+  
+    console.log("Saving PDF...");
+    // Save the PDF
+    doc.save(`Receipt_${order._id}.pdf`);
+    console.log("PDF saved!");
+  
+    // Notify user
+    toast.success('Receipt generated successfully!');
+  } catch (error) {
+    console.error("Error generating receipt:", error);
+    toast.error(`Failed to generate receipt: ${error.message}`);
+  }
+};
+  
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const response = await axios.post(
@@ -44,10 +170,22 @@ const Orders = ({ token }) => {
         { orderId, status: newStatus },
         { headers: { token } }
       );
-
+  
       if (response.data.success) {
         toast.success(`Order status updated to "${newStatus}"`);
-        await fetchAllOrders();
+  
+        // Update the status in the local state
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order._id === orderId ? { ...order, status: newStatus } : order
+          )
+        );
+  
+        // Automatically generate a receipt if the status is "Received"
+        if (newStatus === 'Received') {
+          const order = orders.find((o) => o._id === orderId);
+          generateReceipt(order);
+        }
       } else {
         toast.error(response.data.message);
       }
@@ -57,11 +195,45 @@ const Orders = ({ token }) => {
     }
   };
 
-  // Filter orders based on status and search query
+  const handleAppointmentChange = (orderId, field, value) => {
+    setOrders((prevOrders) =>
+      prevOrders.map((order) =>
+        order._id === orderId ? { ...order, [field]: value } : order
+      )
+    );
+  };
+
+  const saveAppointment = async (orderId) => {
+    const order = orders.find((o) => o._id === orderId);
+
+    try {
+      const response = await axios.post(
+        `${backendUrl}/api/orders/appointment`,
+        {
+          orderId,
+          appointmentDate: order.appointmentDate,
+          appointmentTime: order.appointmentTime,
+        },
+        { headers: { token } }
+      );
+
+      if (response.data.success) {
+        toast.success('Appointment updated successfully');
+        await fetchAllOrders();
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update appointment');
+    }
+  };
+
   const filteredOrders = orders.filter(order => {
     const matchesStatus = filterStatus === 'All' || order.status === filterStatus;
 
     const matchesSearch = searchQuery === '' ||
+      (order._id && order._id.toLowerCase().includes(searchQuery.toLowerCase())) ||
       order.items.some(item => item.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (order.firstName && order.firstName.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (order.lastName && order.lastName.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -74,7 +246,6 @@ const Orders = ({ token }) => {
     fetchAllOrders();
   }, [token]);
 
-  // Get unique status options
   const statusOptions = ['All', ...new Set(orders.map(order => order.status))];
 
   const getStatusColor = (status) => {
@@ -115,11 +286,10 @@ const Orders = ({ token }) => {
         </h2>
 
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          {/* Search Input */}
           <div className="relative">
             <input
               type="text"
-              placeholder="Search orders..."
+              placeholder="Search by ID, name, items, phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 w-full"
@@ -129,7 +299,6 @@ const Orders = ({ token }) => {
             </span>
           </div>
 
-          {/* Status Filter */}
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -140,7 +309,6 @@ const Orders = ({ token }) => {
             ))}
           </select>
 
-          {/* Refresh Button */}
           <button
             onClick={fetchAllOrders}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center justify-center"
@@ -156,29 +324,12 @@ const Orders = ({ token }) => {
         </div>
       </div>
 
-      {/* Order Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         {[
-          {
-            label: 'Total Orders',
-            value: orders.length,
-            color: 'bg-blue-50 border-blue-200'
-          },
-          {
-            label: 'Order Placed',
-            value: orders.filter(o => o.status === 'Order Placed').length,
-            color: 'bg-yellow-50 border-yellow-200'
-          },
-          {
-            label: 'Ready for Pick Up',
-            value: orders.filter(o => o.status === 'Ready for Pick Up').length,
-            color: 'bg-indigo-50 border-indigo-200'
-          },
-          {
-            label: 'Received',
-            value: orders.filter(o => o.status === 'Received').length,
-            color: 'bg-green-50 border-green-200'
-          }
+          { label: 'Total Orders', value: orders.length, color: 'bg-blue-50 border-blue-200' },
+          { label: 'Order Placed', value: orders.filter(o => o.status === 'Order Placed').length, color: 'bg-yellow-50 border-yellow-200' },
+          { label: 'Ready for Pick Up', value: orders.filter(o => o.status === 'Ready for Pick Up').length, color: 'bg-indigo-50 border-indigo-200' },
+          { label: 'Received', value: orders.filter(o => o.status === 'Received').length, color: 'bg-green-50 border-green-200' }
         ].map((stat, index) => (
           <div key={index} className={`${stat.color} border rounded-lg p-4 flex flex-col items-center justify-center`}>
             <p className="text-gray-600 text-sm">{stat.label}</p>
@@ -187,7 +338,6 @@ const Orders = ({ token }) => {
         ))}
       </div>
 
-      {/* Orders List */}
       {loading ? (
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -199,7 +349,6 @@ const Orders = ({ token }) => {
               key={orderIndex}
               className="border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md"
             >
-              {/* Order Header - Always Visible */}
               <div
                 className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 cursor-pointer"
                 onClick={() => setExpandedOrder(expandedOrder === order._id ? null : order._id)}
@@ -214,6 +363,9 @@ const Orders = ({ token }) => {
                     </p>
                     <p className="text-sm text-gray-500">
                       {formatDate(order.date)}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      ID: {order._id}
                     </p>
                   </div>
                 </div>
@@ -231,6 +383,22 @@ const Orders = ({ token }) => {
                   <span className="font-bold">
                     {currency} {order.amount}
                   </span>
+                  
+                  {/* View Receipt Button */}
+                  <button 
+                    className="px-3 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full hover:bg-green-200 transition flex items-center gap-1" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault(); 
+                      generateReceipt(order);
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Receipt
+                  </button>
+                  
                   <button
                     className="text-blue-600 ml-2"
                     onClick={(e) => {
@@ -243,11 +411,9 @@ const Orders = ({ token }) => {
                 </div>
               </div>
 
-              {/* Expanded Order Details */}
               {expandedOrder === order._id && (
                 <div className="p-4 border-t border-gray-200">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Order Items */}
                     <div>
                       <h4 className="font-semibold text-gray-700 mb-3">Order Items</h4>
                       <div className="space-y-2">
@@ -264,9 +430,21 @@ const Orders = ({ token }) => {
                           </div>
                         ))}
                       </div>
+                      
+                      {/* Receipt Button in Expanded View */}
+                      <div className="mt-4">
+                        <button
+                          onClick={() => generateReceipt(order)}
+                          className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center justify-center"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Download Receipt
+                        </button>
+                      </div>
                     </div>
 
-                    {/* Customer Information */}
                     <div>
                       <h4 className="font-semibold text-gray-700 mb-3">Customer Details</h4>
                       <div className="bg-gray-50 p-4 rounded-md">
@@ -287,11 +465,45 @@ const Orders = ({ token }) => {
                             <p className="text-sm text-gray-500">Program</p>
                             <p>{order.program || 'N/A'}</p>
                           </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Appointed Date</p>
+                            <p>{order.appointmentDate ? new Date(order.appointmentDate).toLocaleDateString() : 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Appointed Time</p>
+                            <p>{order.appointmentTime || 'N/A'}</p>
+                          </div>
+                          {/* Order ID */}
+                          <div className="col-span-2">
+                            <p className="text-sm text-gray-500">Order ID</p>
+                            <p className="font-mono text-xs break-all">{order._id}</p>
+                          </div>
+                          {/* Payment Status */}
+                          <div className="col-span-2">
+                            <p className="text-sm text-gray-500">Payment Status</p>
+                            <div className="flex items-center mt-1">
+                              <span
+                                className={`inline-flex mr-2 w-3 h-3 rounded-full ${order.status === 'Received' || order.payment === 'paid'
+                                    ? 'bg-green-500'
+                                    : 'bg-amber-500'
+                                  }`}
+                              ></span>
+                              <span
+                                className={`font-medium ${order.status === 'Received' || order.payment === 'paid'
+                                    ? 'text-green-600'
+                                    : 'text-amber-600'
+                                  }`}
+                              >
+                                {order.status === 'Received' || order.payment === 'paid'
+                                  ? 'Paid'
+                                  : 'Pending Payment'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Order Management */}
                     <div>
                       <h4 className="font-semibold text-gray-700 mb-3">Order Management</h4>
                       <div className="bg-gray-50 p-4 rounded-md">
@@ -308,20 +520,33 @@ const Orders = ({ token }) => {
                               <option value="Received">Received</option>
                             </select>
                           </div>
-
                           <div>
-                            <p className="text-sm text-gray-500">Payment Status</p>
-                            <p
-                              className={`mt-1 font-medium ${order.status === 'Received' || order.payment ? 'text-green-600' : 'text-yellow-600'
-                                }`}
-                            >
-                              {order.status === 'Received' || order.payment ? 'Paid' : 'Pending Payment'}
-                            </p>
+                            <p className="text-sm text-gray-500">Appoint Date</p>
+                            <input
+                              type="date"
+                              value={order.appointmentDate ? new Date(order.appointmentDate).toISOString().split('T')[0] : ''}
+                              onChange={(e) => handleAppointmentChange(order._id, 'appointmentDate', e.target.value)}
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            />
                           </div>
 
                           <div>
-                            <p className="text-sm text-gray-500">Order ID</p>
-                            <p className="mt-1 text-sm font-mono">{order._id}</p>
+                            <p className="text-sm text-gray-500">Appoint Time</p>
+                            <input
+                              type="time"
+                              value={order.appointmentTime || ''}
+                              onChange={(e) => handleAppointmentChange(order._id, 'appointmentTime', e.target.value)}
+                              className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => saveAppointment(order._id)}
+                              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                            >
+                              Save Changes
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -353,7 +578,6 @@ const Orders = ({ token }) => {
         </div>
       )}
 
-      {/* Summary Footer */}
       {filteredOrders.length > 0 && (
         <div className="mt-6 text-right text-sm text-gray-600">
           Showing {filteredOrders.length} of {orders.length} orders

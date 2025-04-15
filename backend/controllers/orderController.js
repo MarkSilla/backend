@@ -39,7 +39,7 @@ const placeOrder = async (req, res) => {
             department,
             paymentMethod,
             program,
-            payment: false, // Payment is false for on-site payment
+            payment: false, 
             date: Date.now(),
         });
 
@@ -105,6 +105,33 @@ const allOrders = async (req, res) => {
         res.json({ success: false, message: error.message })
     }
 }
+const updateAppointment = async (req, res) => {
+    try {
+        const { orderId, appointmentDate, appointmentTime } = req.body;
+
+        // Validate required fields
+        if (!orderId || !appointmentDate || !appointmentTime) {
+            return res.status(400).json({ success: false, message: "Order ID, appointment date, and appointment time are required" });
+        }
+
+        // Find the order by ID
+        const order = await orderModel.findById(orderId);
+
+        if (!order) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        // Update the appointment date and time
+        order.appointmentDate = appointmentDate;
+        order.appointmentTime = appointmentTime;
+        await order.save();
+
+        res.status(200).json({ success: true, message: "Appointment updated successfully", order });
+    } catch (error) {
+        console.error("Error updating appointment:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
 
 const userOrders = async (req, res) => {
     try {
@@ -117,6 +144,7 @@ const userOrders = async (req, res) => {
         res.json({ success: false, message: error.message })
     }
 }
+
 
 const updateStatus = async (req, res) => {
     try {
@@ -156,4 +184,4 @@ const updateStatus = async (req, res) => {
 };
 
 
-export { placeOrder, allOrders, payMongo, userOrders, updateStatus,};
+export { placeOrder, allOrders, payMongo, userOrders, updateStatus, updateAppointment };
