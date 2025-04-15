@@ -4,14 +4,19 @@ import Title from '../components/Title';
 import QRCodeComponent from '../components/Qrcode';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import generateReceipt from '../../../admin/src/utils/generateReceipt';
 
 const Orders = () => {
   const { backendUrl, token, currency } = useContext(ShopContext);
 
   const [orderData, setOrderData] = useState([]);
+  const [fullOrders, setFullOrders] = useState([]); // Store full orders data
   const [loading, setLoading] = useState(true);
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeData, setQrCodeData] = useState(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptUrl, setReceiptUrl] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const loadOrderData = async () => {
     try {
@@ -19,8 +24,12 @@ const Orders = () => {
       const response = await axios.get(`${backendUrl}/api/orders/userorders`, {
         headers: { token },
       });
-  
+
       if (response.data.success) {
+        // Store the full orders for receipt generation
+        setFullOrders(response.data.orders);
+        
+        // Process orders for display as before
         const allOrdersItem = response.data.orders.flatMap((order) =>
           order.items.map((item) => ({
             ...item,
@@ -29,11 +38,11 @@ const Orders = () => {
             paymentMethod: order.paymentMethod,
             date: order.date,
             orderId: order._id,
-            appointmentDate: order.appointmentDate, 
+            appointmentDate: order.appointmentDate,
             appointmentTime: order.appointmentTime,
           }))
         );
-  
+
         setOrderData(allOrdersItem.reverse());
       } else {
         toast.error(response.data.message);
@@ -47,6 +56,26 @@ const Orders = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateReceipt = (item) => {
+    try {
+      // Find the full order that contains this item
+      const fullOrder = fullOrders.find(order => order._id === item.orderId);
+      
+      if (!fullOrder) {
+        throw new Error('Order not found');
+      }
+      
+      // Generate receipt using the full order object
+      const url = generateReceipt(fullOrder, currency);
+      setReceiptUrl(url);
+      setSelectedOrder(fullOrder);
+      setShowReceiptModal(true);
+    } catch (error) {
+      console.error('Error generating receipt:', error);
+      toast.error('Failed to generate receipt. Please try again.');
     }
   };
 
@@ -164,7 +193,7 @@ const Orders = () => {
                       </div>
                     </div>
 
-                    {/* Order Info Section - Rearranged to have order date under payment method */}
+                    {/* Order Info Section */}
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-500">
                       {/* Left Column - Payment Method and Order Date */}
                       <div className="space-y-2">
@@ -188,7 +217,7 @@ const Orders = () => {
                             Payment Method: {item.paymentMethod || 'Not Available'}
                           </span>
                         </div>
-                        
+
                         {/* Order Date */}
                         <div className="flex items-center">
                           <svg
@@ -217,7 +246,7 @@ const Orders = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       {/* Right Column - Appointment Date and Time */}
                       <div className="space-y-2">
                         {/* Appointment Date */}
@@ -247,7 +276,7 @@ const Orders = () => {
                               : 'Pending'}
                           </span>
                         </div>
-                        
+
                         {/* Appointment Time with Clock Icon */}
                         <div className="flex items-center">
                           <svg
@@ -304,6 +333,30 @@ const Orders = () => {
                   >
                     Show QR Code
                   </button>
+                  
+                  {/* Receipt Button */}
+                  {item.status === 'Received' && (
+                    <button
+                      onClick={() => handleGenerateReceipt(item)}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 mr-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      View Receipt
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -355,6 +408,30 @@ const Orders = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Modal */}
+      {showReceiptModal && receiptUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Receipt</h3>
+              <button
+                onClick={() => setShowReceiptModal(false)}
+                className="text-gray-500 hover:text-gray-800"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4">
+              <iframe
+                src={receiptUrl}
+                title="Receipt"
+                className="w-full h-96 border rounded-lg"
+              ></iframe>
             </div>
           </div>
         </div>

@@ -3,8 +3,7 @@ import axios from 'axios';
 import { backendUrl, currency } from '../App';
 import { toast } from 'react-toastify';
 import { assets } from '../assets/assets';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable'; 
+import generateReceipt from '../utils/generateReceipt.jsx';
 
 const Orders = ({ token }) => {
   const [orders, setOrders] = useState([]);
@@ -39,130 +38,6 @@ const Orders = ({ token }) => {
     }
   };
 
-  // Replace your current generateReceipt function with this one
-const generateReceipt = (order) => {
-  try {
-    console.log("Starting receipt generation...");
-    // Import jsPDF and jspdf-autotable if not already imported
-    // Make sure they're properly defined and accessible
-    
-    const doc = new jsPDF();
-    console.log("PDF document created");
-    
-    // Add receipt title
-    const pageWidth = doc.internal.pageSize.getWidth();
-    doc.setFontSize(22);
-    doc.setTextColor(44, 62, 80); // Dark blue-gray
-    doc.text("ORDER RECEIPT", pageWidth / 2, 20, { align: 'center' });
-    console.log("Added title");
-  
-    // Add a subtle line below the title
-    doc.setDrawColor(52, 152, 219); // Blue
-    doc.setLineWidth(0.5);
-    doc.line(20, 25, pageWidth - 20, 25);
-  
-    // Add order details
-    doc.setFontSize(12);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Order ID: ${order._id}`, 20, 40);
-    doc.text(`Customer Name: ${order.firstName} ${order.lastName}`, 20, 50);
-    doc.text(`Order Date: ${new Date(order.date).toLocaleDateString()}`, 20, 60);
-    doc.text(`Status: ${order.status}`, 20, 70);
-    doc.text(`Payment Status: ${order.payment === 'paid' ? 'Paid' : 'Pending'}`, 20, 80);
-    console.log("Added order details");
-    
-    // Check if the autotable plugin is properly loaded
-    if (typeof doc.autoTable !== 'function') {
-      console.error("jsPDF-AutoTable plugin is not properly loaded!");
-      // If autotable is not available, create a simpler table manually
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
-      
-      // Draw table headers manually
-      doc.setFont(undefined, 'bold');
-      doc.text("Item", 20, 100);
-      doc.text("Size", 70, 100);
-      doc.text("Qty", 100, 100);
-      doc.text("Price", 120, 100);
-      doc.text("Total", 160, 100);
-      doc.setFont(undefined, 'normal');
-      
-      // Draw lines for the header row
-      doc.line(20, 102, 180, 102);
-      
-      // Draw table rows manually
-      let currentY = 110;
-      order.items.forEach((item, index) => {
-        doc.text(item.name, 20, currentY);
-        doc.text(item.size || '-', 70, currentY);
-        doc.text(item.quantity.toString(), 100, currentY);
-        doc.text(`${currency} ${item.price.toFixed(2)}`, 120, currentY);
-        doc.text(`${currency} ${(item.price * item.quantity).toFixed(2)}`, 160, currentY);
-        currentY += 10;
-      });
-      
-      // Add total amount
-      currentY += 10;
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(44, 62, 80);
-      doc.text(`Total Amount: ${currency} ${order.amount.toFixed(2)}`, pageWidth - 20, currentY, { align: 'right' });
-    } else {
-      // If autotable is available, use it
-      console.log("Using autoTable plugin");
-      // Add table headers and rows
-      const tableColumn = ["Item", "Size", "Qty", "Price", "Total"];
-      const tableRows = order.items.map((item) => [
-        item.name,
-        item.size || '-',
-        item.quantity,
-        `${currency} ${item.price.toFixed(2)}`,
-        `${currency} ${(item.price * item.quantity).toFixed(2)}`
-      ]);
-    
-      // Add the table to the document
-      doc.autoTable({
-        head: [tableColumn],
-        body: tableRows,
-        startY: 90,
-        theme: 'grid',
-        styles: {
-          fontSize: 9,
-          cellPadding: 3,
-          lineColor: [220, 220, 220],
-        },
-        headStyles: {
-          fillColor: [52, 152, 219],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-        },
-        alternateRowStyles: {
-          fillColor: [240, 240, 240],
-        },
-      });
-    
-      // Calculate final Y position after table
-      const finalY = doc.previousAutoTable.finalY + 10;
-    
-      // Add total amount
-      doc.setFontSize(12);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(44, 62, 80);
-      doc.text(`Total Amount: ${currency} ${order.amount.toFixed(2)}`, pageWidth - 20, finalY, { align: 'right' });
-    }
-  
-    console.log("Saving PDF...");
-    // Save the PDF
-    doc.save(`Receipt_${order._id}.pdf`);
-    console.log("PDF saved!");
-  
-    // Notify user
-    toast.success('Receipt generated successfully!');
-  } catch (error) {
-    console.error("Error generating receipt:", error);
-    toast.error(`Failed to generate receipt: ${error.message}`);
-  }
-};
-  
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const response = await axios.post(
@@ -170,17 +45,17 @@ const generateReceipt = (order) => {
         { orderId, status: newStatus },
         { headers: { token } }
       );
-  
+
       if (response.data.success) {
         toast.success(`Order status updated to "${newStatus}"`);
-  
+
         // Update the status in the local state
         setOrders((prevOrders) =>
           prevOrders.map((order) =>
             order._id === orderId ? { ...order, status: newStatus } : order
           )
         );
-  
+
         // Automatically generate a receipt if the status is "Received"
         if (newStatus === 'Received') {
           const order = orders.find((o) => o._id === orderId);
@@ -383,22 +258,33 @@ const generateReceipt = (order) => {
                   <span className="font-bold">
                     {currency} {order.amount}
                   </span>
-                  
+
                   {/* View Receipt Button */}
-                  <button 
-                    className="px-3 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full hover:bg-green-200 transition flex items-center gap-1" 
+                  <button
+                    className="px-3 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full hover:bg-green-200 transition flex items-center gap-1"
                     onClick={(e) => {
                       e.stopPropagation();
-                      e.preventDefault(); 
-                      generateReceipt(order);
+                      e.preventDefault();
+                      const receiptUrl = generateReceipt(order); // Generate the receipt and get the Blob URL
+                      window.open(receiptUrl, '_blank'); // Open the receipt in a new tab
                     }}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-3 w-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                     Receipt
                   </button>
-                  
                   <button
                     className="text-blue-600 ml-2"
                     onClick={(e) => {
@@ -430,17 +316,33 @@ const generateReceipt = (order) => {
                           </div>
                         ))}
                       </div>
-                      
+
                       {/* Receipt Button in Expanded View */}
                       <div className="mt-4">
                         <button
-                          onClick={() => generateReceipt(order)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            const receiptUrl = generateReceipt(order); // Generate the receipt and get the Blob URL
+                            window.open(receiptUrl, '_blank'); // Open the receipt in a new tab
+                          }}
                           className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center justify-center"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 mr-2"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
                           </svg>
-                          Download Receipt
+                          View Receipt
                         </button>
                       </div>
                     </div>
@@ -484,14 +386,14 @@ const generateReceipt = (order) => {
                             <div className="flex items-center mt-1">
                               <span
                                 className={`inline-flex mr-2 w-3 h-3 rounded-full ${order.status === 'Received' || order.payment === 'paid'
-                                    ? 'bg-green-500'
-                                    : 'bg-amber-500'
+                                  ? 'bg-green-500'
+                                  : 'bg-amber-500'
                                   }`}
                               ></span>
                               <span
                                 className={`font-medium ${order.status === 'Received' || order.payment === 'paid'
-                                    ? 'text-green-600'
-                                    : 'text-amber-600'
+                                  ? 'text-green-600'
+                                  : 'text-amber-600'
                                   }`}
                               >
                                 {order.status === 'Received' || order.payment === 'paid'
