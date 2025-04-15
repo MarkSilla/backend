@@ -4,7 +4,7 @@ import Title from '../components/Title';
 import QRCodeComponent from '../components/Qrcode';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import generateReceipt from '../../../admin/src/utils/generateReceipt';
+import generateReceipt from '../utils/generateReceipt';
 
 const Orders = () => {
   const { backendUrl, token, currency } = useContext(ShopContext);
