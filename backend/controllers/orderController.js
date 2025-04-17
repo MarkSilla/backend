@@ -1,6 +1,12 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
-import productModel from "../models/productModel.js"; 
+import productModel from "../models/productModel.js";
+import axios from 'axios';
+import dotenv from 'dotenv';
+import { io } from '../server.js';    
+
+
+dotenv.config();
 
 const placeOrder = async (req, res) => {
     try {
@@ -39,12 +45,16 @@ const placeOrder = async (req, res) => {
             department,
             paymentMethod,
             program,
-            payment: false, 
+            payment: false,
+            status: 'Order Placed', // Set initial status
             date: Date.now(),
         });
 
         // Save the order to the database
         await newOrder.save();
+
+        // Emit the new order to all connected admin clients
+        io.emit('newOrderPlaced', newOrder);
 
         // Optionally, clear the user's cart after placing the order
         await userModel.findByIdAndUpdate(userId, { cartData: {} });
@@ -65,36 +75,76 @@ const payMongo = async (req, res) => {
             return res.status(400).json({ success: false, message: "Amount and description are required" });
         }
 
+        // Validate amount is a number
+        if (isNaN(amount) || amount <= 0) {
+            return res.status(400).json({ success: false, message: "Amount must be a positive number" });
+        }
+
         // Create a payment link using PayMongo API
         const response = await axios.post(
             "https://api.paymongo.com/v1/links",
             {
                 data: {
                     attributes: {
-                        amount: amount * 100,
+                        amount: Math.round(amount * 100), // Convert to smallest currency unit and ensure it's an integer
                         description: description,
+                        currency: "PHP",
+                        success: `${process.env.FRONTEND_URL}/payment-success`, 
+                        failed: `${process.env.FRONTEND_URL}/home`, 
                     },
                 },
             },
             {
                 headers: {
-                    Authorization: `Basic ${Buffer.from("sk_test_QPWmfdMUtUyXV3y7XHBb58yK").toString("base64")}`, // Replace with your PayMongo secret key
+                    Authorization: `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY).toString("base64")}`,
                     "Content-Type": "application/json",
                 },
             }
         );
 
-        // Return the payment link to the client
+        // Return the payment link and ID to the client
         res.status(201).json({
             success: true,
             message: "Payment link created successfully",
             paymentLink: response.data.data.attributes.checkout_url,
+            paymentId: response.data.data.id,
+            expiresAt: response.data.data.attributes.livemode ?
+                response.data.data.attributes.inactive_at :
+                null // In test mode, the link doesn't expire
         });
     } catch (error) {
-        console.error("Error creating payment link:", error.response?.data || error.message);
-        res.status(500).json({ success: false, message: "Failed to create payment link" });
+        // Handle different types of errors
+        if (error.response) {
+            // PayMongo returned an error
+            console.error("PayMongo API error:", error.response.data);
+
+            const errorMessage = error.response.data.errors?.[0]?.detail ||
+                "Failed to create payment link";
+
+            return res.status(error.response.status).json({
+                success: false,
+                message: errorMessage,
+                code: error.response.data.errors?.[0]?.code
+            });
+        } else if (error.request) {
+            // No response received
+            console.error("No response from PayMongo API:", error.request);
+            return res.status(503).json({
+                success: false,
+                message: "Payment service unavailable"
+            });
+        } else {
+            // Something else went wrong
+            console.error("Error creating payment link:", error.message);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to create payment link"
+            });
+        }
     }
 };
+
+
 
 const allOrders = async (req, res) => {
     try {

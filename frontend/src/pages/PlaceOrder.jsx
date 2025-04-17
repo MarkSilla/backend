@@ -27,6 +27,35 @@ const PlaceOrder = () => {
     setFormData((data) => ({ ...data, [name]: value }));
   };
 
+  const processPayMongoPayment = async (orderData) => {
+    try {
+      // Create a payment link using PayMongo
+      const paymentResponse = await axios.post(
+        `${backendUrl}/api/orders/paymongo`, // Your PayMongo endpoint
+        {
+          amount: orderData.amount, // The total amount
+          description: `Order for ${orderData.firstName} ${orderData.lastName}`, // Payment description
+        },
+        { headers: { token } }
+      );
+
+      if (paymentResponse.data.success) {
+        // Store order ID temporarily to associate with payment later
+        localStorage.setItem('pendingOrderData', JSON.stringify(orderData));
+        localStorage.setItem('paymentId', paymentResponse.data.paymentId);
+
+        // Redirect user to PayMongo checkout page
+        window.location.href = paymentResponse.data.paymentLink;
+      } else {
+        toast.error(paymentResponse.data.message || "Failed to create payment");
+      }
+    } catch (error) {
+      console.error("Error processing payment:", error);
+      toast.error("Payment processing failed. Please try again.");
+      setIsSubmitting(false);
+    }
+  };
+
   const onSubmitHandler = async (event) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -76,8 +105,10 @@ const PlaceOrder = () => {
 
       switch (method) {
         case 'gcash':
-          toast.info("GCash payment processing will be available soon");
-          // GCash payment logic would go here
+          // Handle GCash payment via PayMongo
+          await processPayMongoPayment(orderData);
+          // Note: We don't clear the cart or show success here
+          // This will happen after payment completes and user returns
           break;
 
         case 'on-site-payment':
@@ -86,7 +117,7 @@ const PlaceOrder = () => {
             orderData,
             { headers: { token } }
           );
-          
+
           if (response.data.success) {
             setCartItems({});
             toast.success("Order placed successfully!");
@@ -114,7 +145,7 @@ const PlaceOrder = () => {
         const response = await axios.get(`${backendUrl}/api/user/getuser`, {
           headers: { token },
         });
-        
+
         if (response.data.success) {
           setFormData((prev) => ({
             ...prev,
@@ -139,10 +170,10 @@ const PlaceOrder = () => {
   // Check if cart is empty
   useEffect(() => {
     const isEmpty = !cartItems || Object.keys(cartItems).length === 0;
-    const hasItems = Object.values(cartItems || {}).some(sizes => 
+    const hasItems = Object.values(cartItems || {}).some(sizes =>
       Object.values(sizes).some(quantity => quantity > 0)
     );
-    
+
     if (isEmpty || !hasItems) {
       toast.info("Your cart is empty. Please add items before checkout.");
       navigate('/cart');
@@ -161,13 +192,13 @@ const PlaceOrder = () => {
         <h1 className="font-bold text-2xl md:text-3xl">Checkout</h1>
         <p className="text-gray-600 mt-1">Please review your information and payment method</p>
       </div>
-      
+
       <form onSubmit={onSubmitHandler} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left side - Customer Information */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <SectionTitle>Customer Information</SectionTitle>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
@@ -178,7 +209,7 @@ const PlaceOrder = () => {
                   readOnly
                 />
               </div>
-              
+
               <div>
                 <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
                   Last Name
@@ -193,7 +224,7 @@ const PlaceOrder = () => {
                 />
               </div>
             </div>
-            
+
             <div className="mt-4">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email
@@ -207,7 +238,7 @@ const PlaceOrder = () => {
                 readOnly
               />
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
                 <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
@@ -222,7 +253,7 @@ const PlaceOrder = () => {
                   readOnly
                 />
               </div>
-              
+
               <div>
                 <label htmlFor="program" className="block text-sm font-medium text-gray-700 mb-1">
                   Program
@@ -237,7 +268,7 @@ const PlaceOrder = () => {
                 />
               </div>
             </div>
-            
+
             <div className="mt-4">
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                 Phone Number <span className="text-red-500">*</span>
@@ -264,14 +295,15 @@ const PlaceOrder = () => {
               </p>
             </div>
           </div>
-          
+
           {/* Payment Methods Section */}
+          {/* Payment Methods Section - Update this part */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <SectionTitle>
               <CreditCard className="mr-2" size={20} />
               Payment Method
             </SectionTitle>
-            
+
             <div className="space-y-3">
               <label className={`block border rounded-lg p-4 cursor-pointer transition-all ${method === 'on-site-payment' ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'}`}>
                 <div className="flex items-center">
@@ -292,7 +324,7 @@ const PlaceOrder = () => {
                   )}
                 </div>
               </label>
-              
+
               <label className={`block border rounded-lg p-4 cursor-pointer transition-all ${method === 'gcash' ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'}`}>
                 <div className="flex items-center">
                   <input
@@ -312,26 +344,26 @@ const PlaceOrder = () => {
                   )}
                 </div>
               </label>
-              
+
               {method === 'gcash' && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start">
-                  <AlertCircle className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0" size={16} />
-                  <p className="text-sm text-yellow-700">
-                    GCash payment is coming soon. Please use On-Site Payment for now.
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start">
+                  <CheckCircle className="text-blue-500 mr-2 mt-0.5 flex-shrink-0" size={16} />
+                  <p className="text-sm text-blue-700">
+                    You'll be redirected to GCash to complete your payment securely.
                   </p>
                 </div>
               )}
             </div>
           </div>
         </div>
-        
+
         {/* Right side - Order Summary */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-6">
             <h2 className="font-bold text-lg md:text-xl mb-4">Order Summary</h2>
-            
+
             <CartTotal />
-            
+
             <div className="mt-6">
               <button
                 type="submit"
@@ -353,8 +385,8 @@ const PlaceOrder = () => {
                 )}
               </button>
               <p className="text-xs text-center text-gray-500 mt-2">
-                By placing your order, you agree to our {''} 
-                <Link to= "/terms" className="text-blue-600 hover:underline" >Terms of Service.</Link>
+                By placing your order, you agree to our {''}
+                <Link to="/terms" className="text-blue-600 hover:underline" >Terms of Service.</Link>
               </p>
             </div>
           </div>

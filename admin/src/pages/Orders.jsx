@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { backendUrl, currency } from '../App';
 import { toast } from 'react-toastify';
-import { assets } from '../assets/assets';
+import { io } from 'socket.io-client';
+import {assets} from '../assets/assets.js';
 import generateReceipt from '../utils/generateReceipt.jsx';
 
 const Orders = ({ token }) => {
@@ -11,6 +12,21 @@ const Orders = ({ token }) => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Connect to the Socket.IO server
+  useEffect(() => {
+    const socket = io(backendUrl); // Connect to the backend's Socket.IO server
+
+    // Listen for new orders
+    socket.on('newOrderPlaced', (newOrder) => {
+      setOrders((prevOrders) => [newOrder, ...prevOrders]); // Add the new order to the top of the list
+      toast.info(`New order placed by ${newOrder.firstName} ${newOrder.lastName}`);
+    });
+
+    return () => {
+      socket.disconnect(); // Clean up the connection when the component unmounts
+    };
+  }, []);
 
   const fetchAllOrders = async () => {
     if (!token) {

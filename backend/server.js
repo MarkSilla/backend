@@ -7,38 +7,75 @@ import userRouter from './routes/userRoute.js';
 import productRouter from './routes/productRoute.js';
 import cartRouter from './routes/cartRoute.js';
 import orderRouter from './routes/orderRoute.js';
-import cron from 'node-cron'; // Import node-cron
-import orderModel from './models/orderModel.js'; // Import the Order model
+import cron from 'node-cron';
+import orderModel from './models/orderModel.js';
+import http from 'http';
+import { Server } from 'socket.io';
 
-// App config
 const app = express();
+const server = http.createServer(app);
+
+// CORS configuration
+const corsOptions = {
+  origin: [
+    'http://localhost:5173', // Local frontend
+    'http://localhost:5174', // Another local frontend (if applicable)
+    'https://uniform-xpress-frontend.vercel.app', // Deployed frontend
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed HTTP methods
+  credentials: true, // Allow cookies and authentication headers
+};
+
+app.use(cors(corsOptions)); // Apply the CORS middleware
+app.options('*', cors(corsOptions)); // Allow preflight requests for all routes
+
+const io = new Server(server, {
+  cors: {
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'https://uniform-xpress-frontend.vercel.app',
+    ],
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
 const port = process.env.PORT || 4000;
 connectDB();
 connectCloudinary();
 
-// Middlewares 
 app.use(express.json());
-app.use(cors());
 
-// API endpoint
+// API endpoints
 app.use('/api/user', userRouter);
 app.use('/api/product', productRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/orders', orderRouter);
 
+// Socket.IO connection
+io.on('connection', (socket) => {
+  console.log('A user connected');
+
+  socket.on('disconnect', () => {
+    console.log('A user disconnected');
+  });
+});
+
+// Export the `io` instance for use in controllers
+export { io };
+
 // Cron job to update order statuses
 cron.schedule('* * * * *', async () => {
   try {
     const now = new Date();
-    const currentTime = now.toTimeString().split(' ')[0]; // Format: "HH:mm"
+    const currentTime = now.toTimeString().split(' ')[0];
 
-    // Find orders where the appointment date and time have passed and the status is not "Ready for Pick Up" or "Received"
     const ordersToUpdate = await orderModel.find({
       appointmentTime: { $lte: currentTime },
-      status: { $nin: ['Ready for Pick Up', 'Received'] }, // Exclude "Received" and other final statuses
+      status: { $nin: ['Ready for Pick Up', 'Received'] },
     });
 
-    // Update the status of these orders
     for (const order of ordersToUpdate) {
       order.status = 'Ready for Pick Up';
       await order.save();
@@ -52,10 +89,8 @@ cron.schedule('* * * * *', async () => {
   }
 });
 
-// Root endpoint
 app.get('/', (req, res) => {
-  res.send("API Working");
+  res.send('API Working');
 });
 
-// Start the server
-app.listen(port, () => console.log('Server started on PORT : ' + port));
+server.listen(port, () => console.log('Server started on PORT : ' + port));
