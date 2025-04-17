@@ -21,6 +21,7 @@ const corsOptions = {
     'http://localhost:5173', // Local frontend
     'http://localhost:5174', // Another local frontend (if applicable)
     'https://uniform-xpress-frontend.vercel.app', // Deployed frontend
+    'https://uniformxpress-backend.vercel.app', // Deployed backend
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed HTTP methods
   credentials: true, // Allow cookies and authentication headers
@@ -35,6 +36,7 @@ const io = new Server(server, {
       'http://localhost:5173',
       'http://localhost:5174',
       'https://uniform-xpress-frontend.vercel.app',
+      'https://uniformxpress-backend.vercel.app',
     ],
     methods: ['GET', 'POST'],
     credentials: true,
