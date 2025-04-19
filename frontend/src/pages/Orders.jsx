@@ -14,9 +14,6 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrCodeData, setQrCodeData] = useState(null);
-  const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const [receiptUrl, setReceiptUrl] = useState(null);
-  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const loadOrderData = async () => {
     try {
@@ -68,11 +65,11 @@ const Orders = () => {
         throw new Error('Order not found');
       }
       
-      // Generate receipt using the full order object
+      // Generate receipt URL using the full order object
       const url = generateReceipt(fullOrder, currency);
-      setReceiptUrl(url);
-      setSelectedOrder(fullOrder);
-      setShowReceiptModal(true);
+      
+      // Open in a new tab
+      window.open(url, '_blank');
     } catch (error) {
       console.error('Error generating receipt:', error);
       toast.error('Failed to generate receipt. Please try again.');
@@ -408,30 +405,6 @@ const Orders = () => {
               >
                 Close
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Receipt Modal */}
-      {showReceiptModal && receiptUrl && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full overflow-hidden">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Receipt</h3>
-              <button
-                onClick={() => setShowReceiptModal(false)}
-                className="text-gray-500 hover:text-gray-800"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-4">
-              <iframe
-                src={receiptUrl}
-                title="Receipt"
-                className="w-full h-96 border rounded-lg"
-              ></iframe>
             </div>
           </div>
         </div>

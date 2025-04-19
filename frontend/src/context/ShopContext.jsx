@@ -67,7 +67,7 @@ const ShopContextProvider = (props) => {
       let message = "";
       if (status === "Ready for Pick Up") {
         message = `Order #${displayOrderId} is now Ready for Pickup!`;
-      } else if (status === "Order Received") {
+      } else if (status === "Received") {
         message = `Order #${displayOrderId} has been received and is being processed.`;
         toast.info(message);
       }
