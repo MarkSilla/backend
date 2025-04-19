@@ -234,7 +234,7 @@ const updateStatus = async (req, res) => {
         order.status = status;
         await order.save();
 
-        // Send notification if it's ready for pickup
+        // If status is "Ready for Pick Up", send notification
         if (status === 'Ready for Pick Up') {
             const userId = order.userId.toString();
             const notificationSent = await sendOrderStatusUpdate(userId, {
@@ -244,15 +244,40 @@ const updateStatus = async (req, res) => {
 
             return res.status(200).json({
                 success: true,
-                message: 'Order status updated and notification sent',
+                message: 'Order status updated and notification sent for Ready for Pick Up',
                 notificationSent,
                 order
             });
         }
 
-        // Log if received
+        // If status is "Received", log it and update user
         if (status === "Received") {
             console.log(`Order ID: ${orderId} has been marked as Received.`);
+
+            // Send notification to the user that the order is received
+            const userId = order.userId.toString();
+            const notificationSent = await sendOrderStatusUpdate(userId, {
+                orderId: orderId.toString(),
+                status: "Received",
+                message: "Your order has been successfully received. Thank you!"
+            });
+
+            // Update user record (optional, if you want to track order status in the user model)
+            await userModel.findByIdAndUpdate(userId, {
+                $push: {
+                    notifications: {
+                        message: `Order ${orderId.slice(-5)} has been marked as Received.`,
+                        date: new Date()
+                    }
+                }
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Order status updated to Received and user notified',
+                notificationSent,
+                order
+            });
         }
 
         res.status(200).json({ success: true, message: "Status updated successfully", order });
@@ -262,6 +287,7 @@ const updateStatus = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
 
 
 export { placeOrder, allOrders, payMongo, userOrders, updateStatus, updateAppointment };

@@ -9,6 +9,7 @@ import cartRouter from './routes/cartRoute.js';
 import orderRouter from './routes/orderRoute.js';
 import cron from 'node-cron';
 import orderModel from './models/orderModel.js';
+import userModel from './models/userModel.js'; // Make sure to import userModel
 import http from 'http';
 import { Server } from 'socket.io';
 
@@ -50,6 +51,17 @@ io.on('connection', (socket) => {
   if (userId) {
     userSockets[userId] = socket.id;
     console.log(`User ${userId} associated with socket ID: ${socket.id}`);
+    
+    // Send a test notification to confirm connection
+    setTimeout(() => {
+      if (userSockets[userId]) {
+        socket.emit('testNotification', {
+          message: 'Socket connection established successfully',
+          userId: userId
+        });
+        console.log(`Test notification sent to user ${userId}`);
+      }
+    }, 2000);
   }
 
   // Handle userOnline event explicitly
@@ -57,6 +69,9 @@ io.on('connection', (socket) => {
     if (userId) {
       userSockets[userId] = socket.id;
       console.log(`User ${userId} marked as online with socket ID: ${socket.id}`);
+      
+      // Debug: Log all connected users
+      console.log('Connected users:', Object.keys(userSockets));
     }
   });
 
@@ -79,8 +94,10 @@ io.on('connection', (socket) => {
 const notifyUser = (userId, eventName, data) => {
   const socketId = userSockets[userId];
   if (socketId) {
-    io.to(socketId).emit(eventName, data);
-    console.log(`Notified user ${userId} with event ${eventName}:`, data);
+    // Always include userId in the data
+    const notificationData = { ...data, userId };
+    io.to(socketId).emit(eventName, notificationData);
+    console.log(`Notified user ${userId} with event ${eventName}:`, notificationData);
     return true;
   } else {
     console.warn(`Socket ID not found for user ${userId}. Cannot send ${eventName} notification.`);
@@ -90,12 +107,18 @@ const notifyUser = (userId, eventName, data) => {
 
 // Function to send appointment updates to specific users
 const sendAppointmentUpdate = (userId, appointmentDetails) => {
-  return notifyUser(userId, 'appointmentUpdated', appointmentDetails);
+  return notifyUser(userId, 'appointmentUpdated', {
+    ...appointmentDetails,
+    userId // Always include userId
+  });
 };
 
 // Function to send order status updates to specific users
 const sendOrderStatusUpdate = (userId, orderDetails) => {
-  return notifyUser(userId, 'orderStatusUpdated', orderDetails);
+  return notifyUser(userId, 'orderStatusUpdated', {
+    ...orderDetails,
+    userId // Always include userId
+  });
 };
 
 // CRON job to update order statuses
@@ -105,12 +128,15 @@ cron.schedule('* * * * *', async () => {
     const localDate = now.toLocaleDateString('en-CA'); 
     const localTime = now.toLocaleTimeString('en-GB'); 
 
+    // Find orders ready for pickup
     const ordersToUpdate = await orderModel.find({
       appointmentDate: { $lte: localDate },
       appointmentTime: { $lte: localTime },
       status: { $nin: ['Ready for Pick Up', 'Received'] },
     });
-    console.log(`Found ${ordersToUpdate.length} orders to update`);
+    
+    console.log(`Found ${ordersToUpdate.length} orders to update to Ready for Pick Up`);
+    
     // Update orders and notify users via WebSocket
     for (const order of ordersToUpdate) {
       order.status = 'Ready for Pick Up';
@@ -123,6 +149,7 @@ cron.schedule('* * * * *', async () => {
         const statusUpdate = {
           orderId: order._id.toString(),
           status: 'Ready for Pick Up',
+          userId: userId // Include userId in the payload
         };
         sendOrderStatusUpdate(userId, statusUpdate);
 
@@ -132,15 +159,56 @@ cron.schedule('* * * * *', async () => {
           status: 'Ready for Pick Up',
           appointmentDate: order.appointmentDate,
           appointmentTime: order.appointmentTime,
+          userId: userId // Include userId in the payload
         };
         sendAppointmentUpdate(userId, appointmentDetails);
+        
+        console.log(`Order ${order._id} status updated to 'Ready for Pick Up' for user ${userId}`);
       }
-
-      console.log(`Order ${order._id} status updated to 'Ready for Pick Up' for user ${userId}`);
     }
 
-    if (ordersToUpdate.length > 0) {
-      console.log(`Updated ${ordersToUpdate.length} orders to 'Ready for Pick Up'`);
+    // Find orders that have been received but not yet notified
+    const receivedOrders = await orderModel.find({
+      status: 'Received',
+      notificationSent: { $ne: true } // Add a field to track notification status
+    });
+    
+    console.log(`Found ${receivedOrders.length} received orders to notify about`);
+    
+    // Process received orders
+    for (const order of receivedOrders) {
+      const userId = order.userId?.toString();
+      if (userId) {
+        try {
+          // Mark as notified to prevent duplicate notifications
+          order.notificationSent = true;
+          await order.save();
+          
+          // Update user record if needed
+          if (userModel) {
+            await userModel.findByIdAndUpdate(userId, {
+              $push: {
+                notifications: {
+                  message: `Your order ${order._id.toString().slice(-5)} has been marked as Received.`,
+                  date: new Date(),
+                }
+              }
+            });
+          }
+          
+          // Notify user in real time
+          sendOrderStatusUpdate(userId, {
+            orderId: order._id.toString(),
+            status: 'Received',
+            message: 'Thank you! Your order has been received.',
+            userId: userId // Include userId in the payload
+          });
+          
+          console.log(`User ${userId} notified for received order ${order._id}`);
+        } catch (error) {
+          console.error(`Error processing received order ${order._id}:`, error);
+        }
+      }
     }
   } catch (error) {
     console.error('Error in cron job:', error.message);
@@ -167,7 +235,8 @@ const sendAdminAppointmentNotification = async (userId, orderId, appointmentDate
       orderId: orderId.toString(),
       appointmentDate,
       appointmentTime,
-      message: `Admin has scheduled your order: ${orderId.slice(-5)} pickup for ${appointmentDate} at ${appointmentTime}.`
+      userId, // Include userId in the payload
+      message: `Admin has scheduled your order: ${orderId.toString().slice(-5)} pickup for ${appointmentDate} at ${appointmentTime}.`
     };    
 
     // Send the notification
