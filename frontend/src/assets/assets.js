@@ -17,6 +17,7 @@ import cross_icon from './cross_icon.png'
 import microphone from './microphone.png'
 import GCash_logo from './GCash_logo.png'
 import GC_LOGO from './GC_LOGO.png'
+import notification_icon from './notification-icon.png'
 
 import p_img1 from './p_img1.png'
 import p_img2_1 from './p_img2_1.png'
@@ -94,7 +95,8 @@ export const assets = {
     contact_img,
     GCash_logo,
     cross_icon,
-    GC_LOGO
+    GC_LOGO,
+    notification_icon
 }
 
 export const products = [

@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, } from 'react';
+import { useLocation } from 'react-router-dom'; // move this out of your React import
 import { ShopContext } from '../context/ShopContext';
 import { assets } from '../assets/assets';
 import Title from '../components/Title';
@@ -13,6 +14,9 @@ const Collection = () => {
   const [program, setProgram] = useState([]);
   const [department, setDepartment] = useState([]);
   const [sortType, setSortType] = useState('default');
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const searchTerm = queryParams.get("query") || search;
 
   const toggleCategory = (e) => {
     if (category.includes(e.target.value)) {
@@ -62,11 +66,11 @@ const Collection = () => {
     }
 
     // Filter by search query
-    if (search) {
+    if (searchTerm) {
       productsCopy = productsCopy.filter((item) =>
-        item.name.toLowerCase().includes(search.toLowerCase())
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    }
+    }    
 
     setFilteredProducts(productsCopy);
   };
@@ -88,10 +92,9 @@ const Collection = () => {
     setFilteredProducts(fpCopy);
   };
 
-
   useEffect(() => {
     applyFilter();
-  }, [category, subCategory, department, search, products, program]);
+  }, [category, subCategory, department, search, products, program, searchTerm]);
 
   // Apply sorting dynamically when sortType changes
   useEffect(() => {

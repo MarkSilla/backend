@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { backendUrl, currency } from '../App';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
-import {assets} from '../assets/assets.js';
+import { assets } from '../assets/assets.js';
 import generateReceipt from '../utils/generateReceipt.jsx';
 
 const Orders = ({ token }) => {
@@ -12,23 +12,48 @@ const Orders = ({ token }) => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [socket, setSocket] = useState(null);
+  const [onlineUsers, setOnlineUsers] = useState(0);
 
-  // Connect to the Socket.IO server
+  // Connect to the Socket.IO server and set up all realtime listeners
   useEffect(() => {
-    const socket = io(backendUrl); // Connect to the backend's Socket.IO server
+    const socketInstance = io(backendUrl, {
+      query: { token }, // Pass token for authentication
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+
+    socketInstance.on('connect', () => {
+      console.log('Connected to socket server');
+    });
+
+    socketInstance.on('connect_error', (err) => {
+      console.log('Socket connection error:', err);
+    });
+
+    socketInstance.on('reconnect', (attemptNumber) => {
+      console.log(`Reconnected on attempt ${attemptNumber}`);
+    });
+
+    socketInstance.on('usersOnline', (count) => {
+      setOnlineUsers(count);
+    });
 
     // Listen for new orders
-    socket.on('newOrderPlaced', (newOrder) => {
-      setOrders((prevOrders) => [newOrder, ...prevOrders]); // Add the new order to the top of the list
+    socketInstance.on('newOrderPlaced', (newOrder) => {
+      setOrders((prevOrders) => [newOrder, ...prevOrders]);
       toast.info(`New order placed by ${newOrder.firstName} ${newOrder.lastName}`);
     });
 
-    return () => {
-      socket.disconnect(); // Clean up the connection when the component unmounts
-    };
-  }, []);
+    setSocket(socketInstance);
 
-  const fetchAllOrders = async () => {
+    return () => {
+      socketInstance.disconnect();
+    };
+  }, [token]);
+
+  const fetchAllOrders = useCallback(async () => {
     if (!token) {
       setLoading(false);
       return;
@@ -52,7 +77,7 @@ const Orders = ({ token }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
@@ -71,6 +96,15 @@ const Orders = ({ token }) => {
             order._id === orderId ? { ...order, status: newStatus } : order
           )
         );
+
+        // Emit the status change to other clients via Socket.IO
+        if (socket) {
+          socket.emit('updateOrderStatus', {
+            orderId,
+            status: newStatus,
+            updatedBy: 'Admin' // This could be the logged-in user's name
+          });
+        }
 
         // Automatically generate a receipt if the status is "Received"
         if (newStatus === 'Received') {
@@ -110,6 +144,17 @@ const Orders = ({ token }) => {
 
       if (response.data.success) {
         toast.success('Appointment updated successfully');
+        
+        // Emit the appointment change to other clients via Socket.IO
+        if (socket) {
+          socket.emit('updateAppointment', {
+            orderId,
+            appointmentDate: order.appointmentDate,
+            appointmentTime: order.appointmentTime,
+            updatedBy: 'Admin' 
+          });
+        }
+        
         await fetchAllOrders();
       } else {
         toast.error(response.data.message);
@@ -135,7 +180,7 @@ const Orders = ({ token }) => {
 
   useEffect(() => {
     fetchAllOrders();
-  }, [token]);
+  }, [fetchAllOrders]);
 
   const statusOptions = ['All', ...new Set(orders.map(order => order.status))];
 
@@ -172,11 +217,21 @@ const Orders = ({ token }) => {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4 md:mb-0">
-          Order Management
-        </h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-1">
+            Order Management
+          </h2>
+          <div className="flex items-center">
+            <span className={`inline-flex mr-2 w-3 h-3 rounded-full ${socket?.connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+            <span className="text-sm text-gray-600">
+              {socket?.connected 
+                ? `Realtime Updates Active (${onlineUsers} user${onlineUsers !== 1 ? 's' : ''} online)` 
+                : 'Connecting to realtime server...'}
+            </span>
+          </div>
+        </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-4 md:mt-0">
           <div className="relative">
             <input
               type="text"
@@ -238,10 +293,14 @@ const Orders = ({ token }) => {
           {filteredOrders.map((order, orderIndex) => (
             <div
               key={orderIndex}
-              className="border border-gray-200 rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md"
+              className={`border rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md ${
+                order._id === expandedOrder ? 'border-blue-300' : 'border-gray-200'
+              }`}
             >
               <div
-                className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 cursor-pointer"
+                className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 cursor-pointer ${
+                  order._id === expandedOrder ? 'bg-blue-50' : 'bg-gray-50'
+                }`}
                 onClick={() => setExpandedOrder(expandedOrder === order._id ? null : order._id)}
               >
                 <div className="flex items-center gap-3 mb-3 sm:mb-0">
@@ -281,8 +340,8 @@ const Orders = ({ token }) => {
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
-                      const receiptUrl = generateReceipt(order); // Generate the receipt and get the Blob URL
-                      window.open(receiptUrl, '_blank'); // Open the receipt in a new tab
+                      const receiptUrl = generateReceipt(order);
+                      window.open(receiptUrl, '_blank');
                     }}
                   >
                     <svg
@@ -339,8 +398,8 @@ const Orders = ({ token }) => {
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            const receiptUrl = generateReceipt(order); // Generate the receipt and get the Blob URL
-                            window.open(receiptUrl, '_blank'); // Open the receipt in a new tab
+                            const receiptUrl = generateReceipt(order);
+                            window.open(receiptUrl, '_blank');
                           }}
                           className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center justify-center"
                         >

@@ -1,6 +1,8 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
+import { sendAdminAppointmentNotification } from "../server.js";
+import { sendOrderStatusUpdate } from "../server.js";
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { io } from '../server.js';    
@@ -176,12 +178,23 @@ const updateAppointment = async (req, res) => {
         order.appointmentTime = appointmentTime;
         await order.save();
 
+        const userId = order.userId.toString(); // Convert to string for consistency
+
+        // Send admin notification
+        await sendAdminAppointmentNotification(
+            userId,
+            orderId,
+            appointmentDate,
+            appointmentTime
+        );
+
         res.status(200).json({ success: true, message: "Appointment updated successfully", order });
     } catch (error) {
         console.error("Error updating appointment:", error);
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
+
 
 const userOrders = async (req, res) => {
     try {
@@ -221,12 +234,29 @@ const updateStatus = async (req, res) => {
         order.status = status;
         await order.save();
 
-        // Log the event if the status is updated to "Received"
+        // Send notification if it's ready for pickup
+        if (status === 'Ready for Pick Up') {
+            const userId = order.userId.toString();
+            const notificationSent = await sendOrderStatusUpdate(userId, {
+                orderId: orderId.toString(),
+                status
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Order status updated and notification sent',
+                notificationSent,
+                order
+            });
+        }
+
+        // Log if received
         if (status === "Received") {
             console.log(`Order ID: ${orderId} has been marked as Received.`);
         }
 
-        res.json({ success: true, message: "Status updated successfully", order });
+        res.status(200).json({ success: true, message: "Status updated successfully", order });
+
     } catch (error) {
         console.log(error);
         res.status(500).json({ success: false, message: error.message });

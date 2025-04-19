@@ -13,30 +13,30 @@ const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Find the user by email
         const user = await userModel.findOne({ email });
 
         if (!user) {
-            return res.json({ success: false, message: "User does not exists" })
+            return res.json({ success: false, message: "User does not exist" });
         }
 
+        // Compare the provided password with the hashed password in the database
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (isMatch) {
+            // Create a token
+            const token = createToken(user._id);
 
-            const token = createToken(user._id)
-            res.json({ succes: true, token })
+            // Return the token and userId
+            res.json({ success: true, token, userId: user._id });
+        } else {
+            res.json({ success: false, message: 'Invalid credentials' });
         }
-
-        else {
-            res.json({ success: false, message: 'Invalid credentials' })
-        }
-
     } catch (error) {
         console.log(error);
-        res.json({ success: false, message: error.message })
+        res.json({ success: false, message: error.message });
     }
-
-}
+};
 
 // ito naman sa user registration
 const registerUser = async (req, res) => {

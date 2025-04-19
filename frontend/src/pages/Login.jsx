@@ -142,10 +142,14 @@ const Login = () => {
         } else setAuthError(response.data.message || 'Registration failed');
       } else {
         const response = await axios.post(`${backendUrl}/api/user/login`, { email, password });
+        console.log('Login response:', response.data);
+
         if (response.data && response.data.token) {
           setToken(response.data.token);
           localStorage.setItem('token', response.data.token);
+          localStorage.setItem('userId', response.data.userId);
           toast.success('Login successful!');
+          navigate('/'); 
         } else setAuthError('Invalid login attempt. Please check your credentials.');
       }
     } catch (error) {
