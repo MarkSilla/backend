@@ -95,9 +95,10 @@ const ShopContextProvider = (props) => {
       socketInstance.emit("userOnline", { userId });
     });
 
-    const handleOrderStatusUpdate = (data) => {
-      console.log("Received orderStatusUpdate event:", data);
-      const { orderId, status, userId } = data || {};
+    // New unified handler for all order updates with improved duplicate detection
+    const handleOrderUpdate = (data) => {
+      console.log("Received orderUpdated event:", data);
+      const { orderId, status, appointmentDate, appointmentTime, message, userId } = data || {};
       const displayOrderId = orderId?.toString().slice(-5) || "unknown";
     
       // Check if the notification is for the current user
@@ -108,85 +109,61 @@ const ShopContextProvider = (props) => {
         console.log("Ignoring notification for different user");
         return;
       }
-    
-      let message = "";
-      if (status === "Ready for Pick Up") {
       
-      } else if (status === "Received") {
-        message = `Order #${displayOrderId} has been received and is being processed.`;
-        toast.info(message);
-      } else {
-        message = `Order #${displayOrderId} status updated to ${status}`;
-        toast.info(message);
+      // Handle status updates
+      let notificationMessage = message || "";
+      if (!notificationMessage) {
+        if (status === "Ready for Pick Up") {
+          notificationMessage = `Order #${displayOrderId} is ready for pickup${appointmentDate ? ` on ${appointmentDate} at ${appointmentTime}` : ''}.`;
+        } else if (status === "Received") {
+          notificationMessage = `Order #${displayOrderId} has been received and is being processed.`;
+        } else {
+          notificationMessage = `Order #${displayOrderId} status updated to ${status}`;
+        }
       }
-    
-      if (message) {
-        const newNotification = {
-          id: uuidv4(),
-          token,
-          userId,
-          type: "status",
-          orderId: displayOrderId,
-          message,
-          time: new Date().toLocaleTimeString(),
-          read: false,
-        };
-        
-        addNotification(newNotification);
-      }
-    };
-    
-    const handleAppointmentUpdate = (details) => {
-      console.log("Received appointmentUpdate event:", details);
-      const { orderId, appointmentDate, appointmentTime, status, message, userId } = details || {};
-      const displayOrderId = orderId?.toString().slice(-5) || "unknown";
-    
-      // Check if the notification is for the current user
-      const currentUserId = currentUserIdRef.current;
-      console.log("Comparing received userId:", userId, "with current userId:", currentUserId);
       
-      if (userId !== currentUserId) {
-        console.log("Ignoring appointment notification for different user");
-        return;
+      // Create a deterministic ID based on orderId and status
+      const notificationId = `${orderId}-${status}`;
+      
+      // Check if we already have this exact notification to prevent duplicates
+      const existingNotification = notificationsRef.current.find(
+        n => n.fullOrderId === orderId && n.status === status && n.message === notificationMessage
+      );
+      
+      if (existingNotification) {
+        console.log("Duplicate notification detected, not adding:", notificationMessage);
+        return; // Don't even show toast for duplicate notifications
       }
-    
-      if (status && !appointmentDate && !appointmentTime) {
-        handleOrderStatusUpdate({ orderId, status, userId });
-        return;
-      }
-    
-      const customMessage =
-        message ||
-        `Your order #${displayOrderId} has been scheduled for pickup on ${appointmentDate} at ${appointmentTime}`;
-    
-      toast.info(customMessage);
-    
+      
+      toast.info(notificationMessage);
+      
+      // Create notification object with deterministic ID
       const newNotification = {
-        id: uuidv4(),
-        type: "appointment",
+        id: notificationId,
         token,
         userId,
+        type: appointmentDate ? "appointment" : "status",
         orderId: displayOrderId,
         fullOrderId: orderId,
-        message: customMessage,
-        appointmentDate,
-        appointmentTime,
+        message: notificationMessage,
+        status,
         time: new Date().toLocaleTimeString(),
         read: false,
       };
       
+      // Add appointment details if available
+      if (appointmentDate) {
+        newNotification.appointmentDate = appointmentDate;
+        newNotification.appointmentTime = appointmentTime;
+      }
+      
       addNotification(newNotification);
     };
     
-    // Add event listeners with proper logging
-    socketInstance.on("orderStatusUpdated", (data) => {
-      console.log("Received orderStatusUpdated event:", data);
-      handleOrderStatusUpdate(data);
-    });
-    
-    socketInstance.on("appointmentUpdated", (data) => {
-      console.log("Received appointmentUpdated event:", data);
-      handleAppointmentUpdate(data);
+    // Listen for the new unified event
+    socketInstance.on("orderUpdated", (data) => {
+      console.log("Received orderUpdated event:", data);
+      handleOrderUpdate(data);
     });
 
     socketInstance.on("connect_error", (err) => {
@@ -199,8 +176,7 @@ const ShopContextProvider = (props) => {
 
     return () => {
       console.log("Cleaning up socket connection");
-      socketInstance.off("orderStatusUpdated");
-      socketInstance.off("appointmentUpdated");
+      socketInstance.off("orderUpdated");
       socketInstance.off("connect_error");
       socketInstance.off("disconnect");
       socketInstance.disconnect();

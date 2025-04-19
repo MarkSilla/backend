@@ -13,6 +13,7 @@ const orderSchema = new mongoose.Schema({
     paymentMethod: { type: String, required: true },
     payment: { type: Boolean, required: true, default: false },
     date: { type: Number, default: Date.now() },
+    notificationSent: {type: Boolean, default: false},
     appointmentDate: { type: Date }, 
     appointmentTime: { type: String }, 
 });

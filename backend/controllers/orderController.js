@@ -2,7 +2,7 @@ import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
 import productModel from "../models/productModel.js";
 import { sendAdminAppointmentNotification } from "../server.js";
-import { sendOrderStatusUpdate } from "../server.js";
+import { sendOrderUpdate } from "../server.js";
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { io } from '../server.js';    
@@ -237,7 +237,7 @@ const updateStatus = async (req, res) => {
         // If status is "Ready for Pick Up", send notification
         if (status === 'Ready for Pick Up') {
             const userId = order.userId.toString();
-            const notificationSent = await sendOrderStatusUpdate(userId, {
+            const notificationSent = await sendOrderUpdate(userId, {
                 orderId: orderId.toString(),
                 status
             });
@@ -256,7 +256,7 @@ const updateStatus = async (req, res) => {
 
             // Send notification to the user that the order is received
             const userId = order.userId.toString();
-            const notificationSent = await sendOrderStatusUpdate(userId, {
+            const notificationSent = await sendOrderUpdate(userId, {
                 orderId: orderId.toString(),
                 status: "Received",
                 message: "Your order has been successfully received. Thank you!"
