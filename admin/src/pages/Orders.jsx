@@ -199,16 +199,18 @@ const Orders = ({ token }) => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown Date';
-
+  
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      hour12: true 
     }).format(date);
   };
+  
 
   const calculateTotalItems = (items) => {
     return items.reduce((total, item) => total + item.quantity, 0);

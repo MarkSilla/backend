@@ -12,6 +12,8 @@ const Add = ({ token }) => {
     image4: false
   });
   
+  const availableSizes = ["S", "M", "L", "XL", "XXL"];
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -20,8 +22,9 @@ const Add = ({ token }) => {
     subCategory: "Topwear",
     department: "General",
     program: "General",
-    stock: 0,
-    sizes: [],
+    stock: 0, 
+    inventory: {}, 
+    sizes: [], 
     bestseller: false
   });
 
@@ -42,14 +45,57 @@ const Add = ({ token }) => {
     });
   };
 
-  // Toggle size selection
+  // Toggle size selection and initialize its stock
   const toggleSize = (size) => {
-    setFormData(prev => ({
-      ...prev,
-      sizes: prev.sizes.includes(size) 
-        ? prev.sizes.filter(item => item !== size) 
-        : [...prev.sizes, size]
-    }));
+    setFormData(prev => {
+      const newInventory = { ...prev.inventory };
+      let newSizes = [...prev.sizes];
+      
+      if (size in newInventory) {
+        // If size exists, remove it from inventory
+        const { [size]: _, ...remainingInventory } = newInventory;
+        newSizes = newSizes.filter(s => s !== size);
+        
+        return { 
+          ...prev, 
+          inventory: remainingInventory,
+          sizes: newSizes
+        };
+      } else {
+        // If size doesn't exist, add it with 0 stock
+        newSizes.push(size);
+        
+        return { 
+          ...prev, 
+          inventory: { 
+            ...newInventory, 
+            [size]: 0 
+          },
+          sizes: newSizes
+        };
+      }
+    });
+  };
+
+  // Update stock for a specific size
+  const updateSizeStock = (size, quantity) => {
+    const quantityNum = parseInt(quantity, 10) || 0;
+    
+    setFormData(prev => {
+      const newInventory = {
+        ...prev.inventory,
+        [size]: quantityNum
+      };
+      
+      // Calculate total stock across all sizes
+      const totalStock = Object.values(newInventory).reduce((sum, val) => sum + val, 0);
+      
+      return {
+        ...prev,
+        inventory: newInventory,
+        stock: totalStock 
+      };
+    });
   };
 
   const onSubmitHandler = async (e) => {
@@ -58,11 +104,16 @@ const Add = ({ token }) => {
     try {
       const submitFormData = new FormData();
 
-      // Append text data
+      // Prepare data for submission
+      const dataToSubmit = { ...formData };
+      
+      // Convert objects to strings for FormData
+      submitFormData.append('inventory', JSON.stringify(formData.inventory));
+      submitFormData.append('sizes', JSON.stringify(formData.sizes));
+      
+      // Add all other fields
       Object.keys(formData).forEach(key => {
-        if (key === 'sizes') {
-          submitFormData.append(key, JSON.stringify(formData[key]));
-        } else {
+        if (key !== 'inventory' && key !== 'sizes') {
           submitFormData.append(key, formData[key]);
         }
       });
@@ -92,6 +143,7 @@ const Add = ({ token }) => {
           department: "General",
           program: "General",
           stock: 0,
+          inventory: {},
           sizes: [],
           bestseller: false
         });
@@ -109,8 +161,6 @@ const Add = ({ token }) => {
       toast.error(error.message);
     }
   };
-
-  const availableSizes = ["S", "M", "L", "XL", "XXL"];
   
   return (
     <div className="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
@@ -285,42 +335,52 @@ const Add = ({ token }) => {
           </div>
         </div>
 
-        {/* Stock */}
-        <div>
-          <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">
-            Available Stock*
-          </label>
-          <input
-            id="stock"
-            name="stock"
-            value={formData.stock}
-            onChange={handleInputChange}
-            className="w-48 px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            type="number"
-            placeholder="Enter quantity"
-            required
-          />
-        </div>
-
-        {/* Sizes */}
+        {/* Sizes and Stock */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Available Sizes
+            Available Sizes and Stock
           </label>
-          <div className="flex flex-wrap gap-3">
-            {availableSizes.map(size => (
-              <button
-                key={size}
-                type="button"
-                onClick={() => toggleSize(size)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
-                  ${formData.sizes.includes(size) 
-                    ? "bg-blue-500 text-white" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-              >
-                {size}
-              </button>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-4">
+            {availableSizes.map(size => {
+              const isSelected = size in formData.inventory;
+              
+              return (
+                <div 
+                  key={size} 
+                  className={`border rounded-md p-3 transition-colors ${
+                    isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200"
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-medium">{size}</span>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSize(size)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                  </div>
+                  
+                  {isSelected && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Stock:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.inventory[size]}
+                        onChange={(e) => updateSizeStock(size, e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Display total stock */}
+          <div className="text-sm text-gray-600">
+            Total Stock: {formData.stock} units
           </div>
         </div>
 

@@ -10,10 +10,12 @@ const productSchema = new mongoose.Schema({
     program: { type: String, required: true },
     department: { type: String, required: true },
     sizes: { type: Array, required: true },
+    inventory: { type: Object, default: {} }, 
     bestseller: { type: Boolean, default: false },
     date: { type: Number, required: true },
-    stock: { type: Number, required: true, default: 0 } 
-});
+    stock: { type: Number, required: true, default: 0 }
+  });
+  
 
 const productModel = mongoose.models.product || mongoose.model('product', productSchema);
 

@@ -31,6 +31,7 @@ const addProduct = async (req, res) => {
             date: Date.now(),
             department,
             program,
+            inventory: req.body.inventory || {},
             bestseller: bestseller === "true" || bestseller === true ? true : false,
             stock: Number(stock),
         };
@@ -83,36 +84,78 @@ const singleProduct = async (req, res) => {
 // function for updating stock when a product is ordered
 const updateStock = async (req, res) => {
     try {
-        const { productId, quantity } = req.body;
-
-        // Validate input
-        if (!productId || !quantity) {
-            return res.json({ success: false, message: "Product ID and quantity are required." });
+      const { productId, size, quantity } = req.body;
+      
+      // Validate input
+      if (!productId || !size || quantity === undefined) {
+        return res.json({ 
+          success: false, 
+          message: "Product ID, size, and quantity are required." 
+        });
+      }
+      
+      // Find the product
+      const product = await productModel.findById(productId);
+      if (!product) {
+        return res.json({ 
+          success: false, 
+          message: "Product not found." 
+        });
+      }
+      
+      // Ensure inventory exists as an object
+      if (!product.inventory || typeof product.inventory !== 'object') {
+        product.inventory = {};
+      }
+      
+      // If inventory is stored as a JSON string, parse it
+      if (typeof product.inventory === 'string') {
+        try {
+          product.inventory = JSON.parse(product.inventory);
+        } catch (error) {
+          return res.json({ 
+            success: false, 
+            message: "Invalid inventory data structure." 
+          });
         }
-
-        // Find the product
-        const product = await productModel.findById(productId);
-        if (!product) {
-            return res.json({ success: false, message: "Product not found." });
-        }
-
-        // Check if stock is sufficient
-        if (product.stock < quantity) {
-            return res.json({ success: false, message: "Insufficient stock." });
-        }
-
-        // Reduce the stock
-        product.stock -= quantity;
-
-        // Save the updated product
-        await product.save();
-
-        res.json({ success: true, message: "Stock updated successfully.", product });
+      }
+      
+      // Check if size exists in inventory
+      const currentStock = parseInt(product.inventory[size] || 0, 10);
+      if (isNaN(currentStock)) {
+        return res.json({ 
+          success: false, 
+          message: "Invalid stock value for the specified size." 
+        });
+      }
+      
+      // Check if stock is sufficient
+      if (currentStock < quantity) {
+        return res.json({ 
+          success: false, 
+          message: `Insufficient stock for size ${size}. Available: ${currentStock}.` 
+        });
+      }
+      
+      // Reduce the stock for the specified size
+      product.inventory[size] = currentStock - quantity;
+      
+      // Save the updated product
+      await product.save();
+      
+      res.json({ 
+        success: true, 
+        message: "Stock updated successfully.", 
+        product 
+      });
     } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
+      console.error("Error updating stock:", error);
+      res.json({ 
+        success: false, 
+        message: error.message 
+      });
     }
-};
+  };
 
 const edit = async (req, res) => {
     try {

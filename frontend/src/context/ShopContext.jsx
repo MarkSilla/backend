@@ -25,7 +25,6 @@ const ShopContextProvider = (props) => {
     try {
       const stored = localStorage.getItem("notifications");
       const parsedNotifications = stored ? JSON.parse(stored) : [];
-      console.log("Loaded notifications from storage:", parsedNotifications);
       return parsedNotifications;
     } catch (err) {
       console.error("Error loading notifications:", err);
@@ -47,7 +46,6 @@ const ShopContextProvider = (props) => {
   useEffect(() => {
     try {
       localStorage.setItem("notifications", JSON.stringify(notifications));
-      console.log("Saved notifications to storage:", notifications);
     } catch (err) {
       console.error("Error saving notifications:", err);
     }
@@ -59,11 +57,9 @@ const ShopContextProvider = (props) => {
       // Check if notification with this ID already exists
       const exists = prev.some(n => n.id === newNotification.id);
       if (exists) {
-        console.log("Notification already exists, not adding duplicate:", newNotification);
         return prev;
       }
       
-      console.log("Adding new notification:", newNotification);
       return [...prev, newNotification];
     });
   }, []);
@@ -77,8 +73,7 @@ const ShopContextProvider = (props) => {
 
     const userId = localStorage.getItem("userId");
     currentUserIdRef.current = userId;
-    console.log("Initializing socket connection with userId:", userId);
-
+  
     const socketInstance = io(backendUrl, {
       auth: { token, userId },
       withCredentials: true,
@@ -91,7 +86,6 @@ const ShopContextProvider = (props) => {
     setSocket(socketInstance);
 
     socketInstance.on("connect", () => {
-      console.log("Socket connected with ID:", socketInstance.id);
       socketInstance.emit("userOnline", { userId });
     });
 
@@ -103,7 +97,7 @@ const ShopContextProvider = (props) => {
     
       // Check if the notification is for the current user
       const currentUserId = currentUserIdRef.current;
-      console.log("Comparing received userId:", userId, "with current userId:", currentUserId);
+
       
       if (userId !== currentUserId) {
         console.log("Ignoring notification for different user");
@@ -228,7 +222,6 @@ const ShopContextProvider = (props) => {
           { itemId, size },
           { headers: { token } }
         );
-        toast.success("Product added to cart");
       } catch (error) {
         const msg = error.response?.data?.message || error.message;
         toast.error(msg);

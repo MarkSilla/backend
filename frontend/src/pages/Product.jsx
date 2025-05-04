@@ -17,28 +17,139 @@ const Product = () => {
   useEffect(() => {
     const selectedProduct = products.find((item) => item._id === productId);
     if (selectedProduct) {
-      setProductData(selectedProduct);
-      setImage(selectedProduct.image[0]);
+      try {
+        // Create a deep copy of the product
+        const parsedProduct = JSON.parse(JSON.stringify(selectedProduct));
+        
+        // Ensure inventory is always an object
+        if (typeof parsedProduct.inventory === 'string') {
+          try {
+            parsedProduct.inventory = JSON.parse(parsedProduct.inventory);
+            console.log("Parsed inventory from string:", parsedProduct.inventory);
+          } catch (error) {
+            console.error("Error parsing inventory string:", error);
+            // Create a default empty inventory
+            parsedProduct.inventory = {};
+          }
+        } else if (!parsedProduct.inventory) {
+          // If inventory is null or undefined, initialize as empty object
+          parsedProduct.inventory = {};
+        }
+        
+        // Ensure each size has a numeric inventory value
+        if (parsedProduct.sizes && Array.isArray(parsedProduct.sizes)) {
+          parsedProduct.sizes.forEach(sizeItem => {
+            if (parsedProduct.inventory[sizeItem] === undefined) {
+              parsedProduct.inventory[sizeItem] = 0;
+            } else {
+              // Convert to number if it's a string
+              parsedProduct.inventory[sizeItem] = parseInt(parsedProduct.inventory[sizeItem], 10) || 0;
+            }
+          });
+        }
+        
+        setProductData(parsedProduct);
+        
+        // Set the first image as default
+        if (parsedProduct.image && parsedProduct.image.length > 0) {
+          setImage(parsedProduct.image[0]);
+        }
+      } catch (error) {
+        console.error("Error processing product data:", error);
+        // Fallback to using the original product data
+        setProductData(selectedProduct);
+        if (selectedProduct.image && selectedProduct.image.length > 0) {
+          setImage(selectedProduct.image[0]);
+        }
+      }
     }
   }, [productId, products]);
 
+  // Calculate total stock from inventory
+  const calculateTotalStock = () => {
+    if (!productData || !productData.inventory) return 0;
+    
+    // Sum all size inventories
+    return Object.values(productData.inventory).reduce((sum, qty) => {
+      // Ensure qty is a number
+      const numQty = parseInt(qty, 10) || 0;
+      return sum + numQty;
+    }, 0);
+  };
+
+  const totalStock = calculateTotalStock();
+
   const handleAddToCart = () => {
     const isLoggedIn = !!localStorage.getItem('token');
-
+    
+    if (!productData) {
+      toast.error("Product data not available.");
+      return;
+    }
+    
+    // Early validation for login status
     if (!isLoggedIn) {
       toast.error("You need to log in to add items to the cart.");
       navigate('/login');
       return;
     }
-    if (productData.stock === 0) {
+  
+    // Validate stock status
+    if (totalStock === 0) {
       toast.error("This product is out of stock.");
       return;
     }
+  
+    // Validate size selection
     if (!size) {
       toast.error("Please select a size before adding to cart.");
       return;
     }
+  
+    // Get inventory for selected size
+    const sizeInventory = parseInt(productData.inventory[size] || 0, 10);
+    
+    // Validate size-specific stock
+    if (sizeInventory === 0) {
+      toast.error(`Size ${size} is out of stock.`);
+      return;
+    }
+  
+    // All validations passed, add to cart
     addToCart(productData._id, size);
+    toast.success("Product added to cart");
+  };
+
+  // Get stock label for a specific size
+  const getSizeStockLabel = (sizeItem) => {
+    if (!productData || !productData.inventory) return 'Unknown';
+    
+    // Ensure numeric conversion
+    const sizeStock = parseInt(productData.inventory[sizeItem] || 0, 10);
+    
+    if (sizeStock === 0) {
+      return 'Out of stock';
+    } else if (sizeStock <= 5) {
+      return `Only ${sizeStock} left`;
+    } else {
+      return `${sizeStock} in stock`;
+    }
+  };
+  
+  // Get CSS class for stock indicator
+  const getSizeStockClass = (sizeItem) => {
+    if (!productData || !productData.inventory) return '';
+    
+    // Ensure numeric conversion
+    const sizeStock = parseInt(productData.inventory[sizeItem] || 0, 10);
+  
+    if (sizeStock === 0) {
+      return 'text-red-600 text-xs';
+    } else if (sizeStock <= 5) {
+      return 'text-yellow-600 text-xs';
+    } else {
+      return 'text-green-600 text-xs';
+    }
   };
 
   if (!productData) {
@@ -59,8 +170,7 @@ const Product = () => {
             {productData.image?.map((img, index) => (
               <div
                 key={index}
-                className={`border rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ${image === img ? 'ring-2 ring-blue-500' : 'hover:border-gray-400'
-                  }`}
+                className={`border rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ${image === img ? 'ring-2 ring-blue-500' : 'hover:border-gray-400'}`}
                 onClick={() => setImage(img)}
               >
                 <img
@@ -78,16 +188,6 @@ const Product = () => {
                 src={image}
                 alt="Selected Product"
               />
-              {productData.isNew && (
-                <div className="absolute top-3 left-3 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">
-                  NEW
-                </div>
-              )}
-              {productData.discount > 0 && (
-                <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                  {productData.discount}% OFF
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -97,6 +197,7 @@ const Product = () => {
           <div>
             <h1 className="font-semibold text-3xl text-gray-900">{productData.name}</h1>
 
+            {/* Reviews stars */}
             <div className="flex items-center gap-1 mt-2">
               {[...Array(5)].map((_, index) => (
                 <img
@@ -109,6 +210,7 @@ const Product = () => {
               <p className="text-gray-600 pl-2 text-sm hover:underline cursor-pointer">(122 Reviews)</p>
             </div>
 
+            {/* Price */}
             <div className="mt-4 flex items-center gap-2">
               <p className="text-3xl font-bold text-gray-900">{currency} {productData.price}</p>
               {productData.oldPrice && (
@@ -116,56 +218,81 @@ const Product = () => {
               )}
             </div>
 
+            {/* Stock status */}
             <div className="mt-3 flex items-center">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${productData.stock > 10 ? 'bg-green-100 text-green-800' :
-                  productData.stock > 0 ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                }`}>
-                {productData.stock > 10 ? 'In Stock' :
-                  productData.stock > 0 ? 'Low Stock' :
-                    'Out of Stock'}
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                totalStock > 10 ? 'bg-green-100 text-green-800' :
+                totalStock > 0 ? 'bg-yellow-100 text-yellow-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                {totalStock > 10 ? `${totalStock} Total in Stock` :
+                 totalStock > 0 ? `${totalStock} Left in Stock` :
+                 'Out of Stock'}
               </span>
-              <span className="ml-2 text-sm text-gray-500">
-                {productData.stock > 0 && `${productData.stock} available`}
-              </span>
+              {totalStock > 0 && (
+                <span className="ml-2 text-sm text-gray-500">
+                  Across all sizes
+                </span>
+              )}
             </div>
 
             <p className="mt-4 text-gray-600 leading-relaxed">{productData.description}</p>
 
-            {/* Size selection */}
+            {/* Size selection with inventory display */}
             <div className="flex flex-col gap-4 my-8">
               <div className="flex justify-between items-center">
                 <p className="font-medium text-gray-800">Select Size</p>
-                {productData.stock === 0 && (
+                {totalStock === 0 && (
                   <p className="text-red-600 text-sm font-medium">Out of Stock</p>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {productData.sizes.map((item, index) => (
-                  <button
-                    onClick={() => setSize(item)}
-                    disabled={productData.stock === 0}
-                    className={`border py-2 px-4 transition ${productData.stock === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
-                        item === size ? 'bg-blue-600 text-white border-blue-600' :
-                          'bg-gray-100 hover:bg-gray-200 transition-colors'
-                      }`}
-                    key={index}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
+              
+              {/* Only render size selector if we have sizes */}
+              {productData.sizes && productData.sizes.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                  {productData.sizes.map((sizeItem, index) => {
+                    // Get inventory for this size (already processed as a number)
+                    const sizeStock = productData.inventory[sizeItem] || 0;
+                    const isOutOfStock = sizeStock === 0;
+
+                    return (
+                      <div
+                        key={index}
+                        className={`border rounded-md overflow-hidden ${isOutOfStock ? 'opacity-60' : ''}`}
+                      >
+                        <button
+                          onClick={() => !isOutOfStock && setSize(sizeItem)}
+                          disabled={isOutOfStock}
+                          className={`w-full py-2 transition ${
+                            isOutOfStock ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
+                            sizeItem === size ? 'bg-blue-600 text-white border-blue-600' :
+                            'bg-gray-50 hover:bg-gray-100 transition-colors'
+                          }`}
+                        >
+                          {sizeItem}
+                        </button>
+                        <div className={`text-center py-1 bg-gray-50 ${getSizeStockClass(sizeItem)}`}>
+                          {getSizeStockLabel(sizeItem)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-gray-500">No sizes available for this product.</p>
+              )}
             </div>
 
-            {/* Add to cart button - made longer */}
+            {/* Add to cart button */}
             <button
               onClick={handleAddToCart}
-              disabled={productData.stock === 0}
-              className={`bg-blue-600 text-white px-12 py-2 text-sm font-medium transition-all w-3/4 rounded-lg ${productData.stock > 0 ? 'hover:bg-blue-700 active:bg-blue-800' :
-                  'opacity-60 cursor-not-allowed'
-                }`}
+              disabled={totalStock === 0}
+              className={`bg-blue-600 text-white px-12 py-2 text-sm font-medium transition-all w-3/4 rounded-lg ${
+                totalStock > 0 ? 'hover:bg-blue-700 active:bg-blue-800' :
+                'opacity-60 cursor-not-allowed'
+              }`}
             >
-              {productData.stock > 0 ? 'ADD TO CART' : 'OUT OF STOCK'}
+              {totalStock > 0 ? 'ADD TO CART' : 'OUT OF STOCK'}
             </button>
 
             {/* Shipping & Guarantees */}
@@ -194,19 +321,21 @@ const Product = () => {
         <div className="flex">
           <button
             onClick={() => setActiveTab('description')}
-            className={`px-5 py-3 text-sm border-t border-l border-r transition-colors ${activeTab === 'description' ?
-                'bg-white text-blue-600 font-semibold border-b-white' :
-                'bg-gray-50 text-gray-600 border-b hover:bg-gray-100'
-              }`}
+            className={`px-5 py-3 text-sm border-t border-l border-r transition-colors ${
+              activeTab === 'description' ?
+              'bg-white text-blue-600 font-semibold border-b-white' :
+              'bg-gray-50 text-gray-600 border-b hover:bg-gray-100'
+            }`}
           >
             Description
           </button>
           <button
             onClick={() => setActiveTab('reviews')}
-            className={`px-5 py-3 text-sm border-t border-r transition-colors ${activeTab === 'reviews' ?
-                'bg-white text-blue-600 font-semibold border-b-white' :
-                'bg-gray-50 text-gray-600 border-b hover:bg-gray-100'
-              }`}
+            className={`px-5 py-3 text-sm border-t border-r transition-colors ${
+              activeTab === 'reviews' ?
+              'bg-white text-blue-600 font-semibold border-b-white' :
+              'bg-gray-50 text-gray-600 border-b hover:bg-gray-100'
+            }`}
           >
             Reviews (122)
           </button>
@@ -252,7 +381,7 @@ const Product = () => {
           )}
         </div>
 
-        {/* Related Products - without the heading */}
+        {/* Related Products */}
         <div className="mt-16">
           <RelatedProducts
             category={productData.category}

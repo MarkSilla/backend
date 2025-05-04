@@ -12,7 +12,7 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-16 md:w-[15%] lg:w-[18%] min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 border-r border-blue-200 shadow-lg flex flex-col">
+    <div className="sticky top-0 h-screen w-16 md:w-[15%] lg:w-[18%] min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 border-r border-blue-200 shadow-lg flex flex-col">
       {/* Sidebar Navigation Links */}
       <div className="flex flex-1 flex-col gap-3 px-2 md:px-4 py-2 text-[15px]">
         {navItems.map((item) => (
