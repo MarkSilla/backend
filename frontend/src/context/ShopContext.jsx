@@ -91,16 +91,13 @@ const ShopContextProvider = (props) => {
 
     // New unified handler for all order updates with improved duplicate detection
     const handleOrderUpdate = (data) => {
-      console.log("Received orderUpdated event:", data);
       const { orderId, status, appointmentDate, appointmentTime, message, userId } = data || {};
       const displayOrderId = orderId?.toString().slice(-5) || "unknown";
     
       // Check if the notification is for the current user
       const currentUserId = currentUserIdRef.current;
-
       
       if (userId !== currentUserId) {
-        console.log("Ignoring notification for different user");
         return;
       }
       
@@ -125,7 +122,6 @@ const ShopContextProvider = (props) => {
       );
       
       if (existingNotification) {
-        console.log("Duplicate notification detected, not adding:", notificationMessage);
         return; // Don't even show toast for duplicate notifications
       }
       
@@ -156,7 +152,6 @@ const ShopContextProvider = (props) => {
     
     // Listen for the new unified event
     socketInstance.on("orderUpdated", (data) => {
-      console.log("Received orderUpdated event:", data);
       handleOrderUpdate(data);
     });
 
@@ -187,8 +182,6 @@ const ShopContextProvider = (props) => {
   
   // Log the filtered notifications whenever they change
   useEffect(() => {
-    console.log("All notifications:", notifications);
-    console.log("Filtered notifications for current user:", userNotifications);
   }, [notifications, userNotifications]);
   
   // Notification handlers
@@ -205,9 +198,80 @@ const ShopContextProvider = (props) => {
     setNotifications((prev) => prev.filter((n) => n.userId !== userId));
   };
 
+  const checkStockAvailability = (productId, size) => {
+
+    const product = products.find(p => p._id === productId);
+    
+    if (!product) {
+        console.log(`Product not found for ID: ${productId}`);
+        return false;
+    }
+    console.log("Product data:", product);
+
+    // Check if inventory exists and has the right format
+    if (!product.inventory) {
+        console.log(`No inventory data for product: ${product.name || productId}`);
+        return false;
+    }
+
+    // Check if the specific size exists in inventory
+    const sizeStock = parseInt(product.inventory[size] || 0, 10);
+    const currentCartQty = cartItems[productId]?.[size] || 0;
+
+    console.log("Stock check details:", { 
+        productId, 
+        size, 
+        availableStock: sizeStock, 
+        currentCartQty,
+        productName: product.name
+    });
+
+    // Return true if we have more stock than what's in cart
+    return sizeStock > currentCartQty;
+};
+
+  // Reduce stock in the backend when an item is ordered
+  const reduceStock = async (productId, size, quantity) => {
+    console.log("Calling reduceStock for:", { productId, size, quantity });
+    if (!token || !backendUrl) {
+        toast.error("Authentication required");
+        return { success: false, message: "Authentication required" };
+    }
+
+    try {
+        const res = await axios.post(
+            `${backendUrl}/api/product/update-stock`,
+            { productId, size, quantity },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        console.log("API Response for reduceStock:", res.data);
+
+        if (res.data.success) {
+            // Fetch updated products after reducing stock
+            const updatedProducts = await axios.get(`${backendUrl}/api/product/list`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setProducts(updatedProducts.data.products);
+
+            return { success: true };
+        } else {
+            toast.error(res.data.message || "Failed to update stock");
+            return { success: false, message: res.data.message };
+        }
+    } catch (error) {
+        console.error("Error in reduceStock:", error.message);
+        return { success: false, message: error.message };
+    }
+};
   // Cart handlers
   const addToCart = async (itemId, size) => {
     if (!size) return toast.error("Please select a size");
+
+    // Check if we have enough stock before adding to cart
+    if (!checkStockAvailability(itemId, size)) {
+      return toast.error("Not enough stock available for this size");
+    }
 
     const cartCopy = structuredClone(cartItems);
     cartCopy[itemId] = cartCopy[itemId] || {};
@@ -230,6 +294,17 @@ const ShopContextProvider = (props) => {
   };
 
   const updateQuantity = async (itemId, size, quantity) => {
+    const product = products.find(p => p._id === itemId);
+    if (!product) return toast.error("Product not found");
+    
+    // Check if we have enough stock for the new quantity
+    const inventory = product.inventory || {};
+    const sizeStock = parseInt(inventory[size] || 0, 10);
+    
+    if (quantity > sizeStock) {
+      return toast.error(`Only ${sizeStock} items available for size ${size}`);
+    }
+    
     const cartCopy = structuredClone(cartItems);
     if (cartCopy[itemId]) {
       cartCopy[itemId][size] = quantity;
@@ -248,6 +323,46 @@ const ShopContextProvider = (props) => {
       }
     }
   };
+const processOrder = async (orderItems) => {
+    console.log("processOrder called with:", orderItems);
+    if (!token || !backendUrl) {
+        toast.error("Authentication required");
+        return { success: false, message: "Authentication required" };
+    }
+
+    let stockUpdateSuccess = true;
+    let errorMessage = "";
+
+    for (const item of orderItems) {
+        const { productId, size, quantity } = item;
+
+        // Skip if any required field is missing
+        if (!productId || !size || !quantity) {
+            toast.error("Invalid order item data");
+            stockUpdateSuccess = false;
+            errorMessage = "Invalid order item data";
+            break;
+        }
+
+        const result = await reduceStock(productId, size, quantity);
+        if (!result.success) {
+            stockUpdateSuccess = false;
+            errorMessage = result.message;
+            break;
+        }
+    }
+
+    if (!stockUpdateSuccess) {
+        toast.error(errorMessage || "Failed to update stock");
+        return { success: false, message: errorMessage || "Failed to update stock" };
+    }
+
+    // Fetch updated product data after stock reduction
+    await getProductsData();
+
+    toast.success("Order processed successfully!");
+    return { success: true };
+};
 
   const getCartAmount = () => {
     let total = 0;
@@ -332,8 +447,11 @@ const ShopContextProvider = (props) => {
     backendUrl,
     socket,
     notifications: userNotifications,
+    processOrder,
     markNotificationAsRead,
     clearNotifications,
+    reduceStock,
+    checkStockAvailability
   };
 
   return (

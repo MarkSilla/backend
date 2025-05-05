@@ -4,10 +4,11 @@ import { ShopContext } from '../context/ShopContext';
 import { assets } from '../assets/assets';
 import RelatedProducts from '../components/RelatedProducts';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const Product = () => {
   const { productId } = useParams();
-  const { products, currency, addToCart } = useContext(ShopContext);
+  const { currency, addToCart, backendUrl } = useContext(ShopContext); // Add backendUrl here
   const [productData, setProductData] = useState(null);
   const [image, setImage] = useState('');
   const [size, setSize] = useState('');
@@ -15,60 +16,46 @@ const Product = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const selectedProduct = products.find((item) => item._id === productId);
-    if (selectedProduct) {
+    const fetchProductData = async () => {
       try {
-        // Create a deep copy of the product
-        const parsedProduct = JSON.parse(JSON.stringify(selectedProduct));
-        
-        // Ensure inventory is always an object
-        if (typeof parsedProduct.inventory === 'string') {
-          try {
-            parsedProduct.inventory = JSON.parse(parsedProduct.inventory);
-            console.log("Parsed inventory from string:", parsedProduct.inventory);
-          } catch (error) {
-            console.error("Error parsing inventory string:", error);
-            // Create a default empty inventory
-            parsedProduct.inventory = {};
+          const res = await axios.get(`${backendUrl}/api/product/${productId}`);
+          if (res.data.success) {
+              const product = res.data.product;
+  
+              // Process inventory
+              if (typeof product.inventory === 'string') {
+                  try {
+                      product.inventory = JSON.parse(product.inventory);
+                  } catch (error) {
+                      product.inventory = {};
+                  }
+              } else if (!product.inventory) {
+                  product.inventory = {};
+              }
+  
+              setProductData(product);
+  
+              if (product.image && product.image.length > 0) {
+                  setImage(product.image[0]);
+              }
+          } else {
+              toast.error(res.data.message || "Failed to fetch product data");
           }
-        } else if (!parsedProduct.inventory) {
-          // If inventory is null or undefined, initialize as empty object
-          parsedProduct.inventory = {};
-        }
-        
-        // Ensure each size has a numeric inventory value
-        if (parsedProduct.sizes && Array.isArray(parsedProduct.sizes)) {
-          parsedProduct.sizes.forEach(sizeItem => {
-            if (parsedProduct.inventory[sizeItem] === undefined) {
-              parsedProduct.inventory[sizeItem] = 0;
-            } else {
-              // Convert to number if it's a string
-              parsedProduct.inventory[sizeItem] = parseInt(parsedProduct.inventory[sizeItem], 10) || 0;
-            }
-          });
-        }
-        
-        setProductData(parsedProduct);
-        
-        // Set the first image as default
-        if (parsedProduct.image && parsedProduct.image.length > 0) {
-          setImage(parsedProduct.image[0]);
-        }
       } catch (error) {
-        console.error("Error processing product data:", error);
-        // Fallback to using the original product data
-        setProductData(selectedProduct);
-        if (selectedProduct.image && selectedProduct.image.length > 0) {
-          setImage(selectedProduct.image[0]);
-        }
+          console.error("Error fetching product data:", error);
+          if (error.response && error.response.status === 404) {
+              toast.error("Product not found");
+          } else {
+              toast.error("An error occurred while fetching product data");
+          }
       }
-    }
-  }, [productId, products]);
-
+  };
+    fetchProductData();
+  }, [productId, backendUrl]);
   // Calculate total stock from inventory
   const calculateTotalStock = () => {
     if (!productData || !productData.inventory) return 0;
-    
+
     // Sum all size inventories
     return Object.values(productData.inventory).reduce((sum, qty) => {
       // Ensure qty is a number
@@ -81,40 +68,40 @@ const Product = () => {
 
   const handleAddToCart = () => {
     const isLoggedIn = !!localStorage.getItem('token');
-    
+
     if (!productData) {
       toast.error("Product data not available.");
       return;
     }
-    
+
     // Early validation for login status
     if (!isLoggedIn) {
       toast.error("You need to log in to add items to the cart.");
       navigate('/login');
       return;
     }
-  
+
     // Validate stock status
     if (totalStock === 0) {
       toast.error("This product is out of stock.");
       return;
     }
-  
+
     // Validate size selection
     if (!size) {
       toast.error("Please select a size before adding to cart.");
       return;
     }
-  
+
     // Get inventory for selected size
     const sizeInventory = parseInt(productData.inventory[size] || 0, 10);
-    
+
     // Validate size-specific stock
     if (sizeInventory === 0) {
       toast.error(`Size ${size} is out of stock.`);
       return;
     }
-  
+
     // All validations passed, add to cart
     addToCart(productData._id, size);
     toast.success("Product added to cart");
@@ -123,10 +110,10 @@ const Product = () => {
   // Get stock label for a specific size
   const getSizeStockLabel = (sizeItem) => {
     if (!productData || !productData.inventory) return 'Unknown';
-    
+
     // Ensure numeric conversion
     const sizeStock = parseInt(productData.inventory[sizeItem] || 0, 10);
-    
+
     if (sizeStock === 0) {
       return 'Out of stock';
     } else if (sizeStock <= 5) {
@@ -135,14 +122,14 @@ const Product = () => {
       return `${sizeStock} in stock`;
     }
   };
-  
+
   // Get CSS class for stock indicator
   const getSizeStockClass = (sizeItem) => {
     if (!productData || !productData.inventory) return '';
-    
+
     // Ensure numeric conversion
     const sizeStock = parseInt(productData.inventory[sizeItem] || 0, 10);
-  
+
     if (sizeStock === 0) {
       return 'text-red-600 text-xs';
     } else if (sizeStock <= 5) {
@@ -220,14 +207,13 @@ const Product = () => {
 
             {/* Stock status */}
             <div className="mt-3 flex items-center">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                totalStock > 10 ? 'bg-green-100 text-green-800' :
-                totalStock > 0 ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
-              }`}>
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${totalStock > 10 ? 'bg-green-100 text-green-800' :
+                  totalStock > 0 ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                }`}>
                 {totalStock > 10 ? `${totalStock} Total in Stock` :
-                 totalStock > 0 ? `${totalStock} Left in Stock` :
-                 'Out of Stock'}
+                  totalStock > 0 ? `${totalStock} Left in Stock` :
+                    'Out of Stock'}
               </span>
               {totalStock > 0 && (
                 <span className="ml-2 text-sm text-gray-500">
@@ -246,7 +232,7 @@ const Product = () => {
                   <p className="text-red-600 text-sm font-medium">Out of Stock</p>
                 )}
               </div>
-              
+
               {/* Only render size selector if we have sizes */}
               {productData.sizes && productData.sizes.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
@@ -263,11 +249,10 @@ const Product = () => {
                         <button
                           onClick={() => !isOutOfStock && setSize(sizeItem)}
                           disabled={isOutOfStock}
-                          className={`w-full py-2 transition ${
-                            isOutOfStock ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
-                            sizeItem === size ? 'bg-blue-600 text-white border-blue-600' :
-                            'bg-gray-50 hover:bg-gray-100 transition-colors'
-                          }`}
+                          className={`w-full py-2 transition ${isOutOfStock ? 'bg-gray-100 text-gray-400 cursor-not-allowed' :
+                              sizeItem === size ? 'bg-blue-600 text-white border-blue-600' :
+                                'bg-gray-50 hover:bg-gray-100 transition-colors'
+                            }`}
                         >
                           {sizeItem}
                         </button>
@@ -287,10 +272,9 @@ const Product = () => {
             <button
               onClick={handleAddToCart}
               disabled={totalStock === 0}
-              className={`bg-blue-600 text-white px-12 py-2 text-sm font-medium transition-all w-3/4 rounded-lg ${
-                totalStock > 0 ? 'hover:bg-blue-700 active:bg-blue-800' :
-                'opacity-60 cursor-not-allowed'
-              }`}
+              className={`bg-blue-600 text-white px-12 py-2 text-sm font-medium transition-all w-3/4 rounded-lg ${totalStock > 0 ? 'hover:bg-blue-700 active:bg-blue-800' :
+                  'opacity-60 cursor-not-allowed'
+                }`}
             >
               {totalStock > 0 ? 'ADD TO CART' : 'OUT OF STOCK'}
             </button>
@@ -321,21 +305,19 @@ const Product = () => {
         <div className="flex">
           <button
             onClick={() => setActiveTab('description')}
-            className={`px-5 py-3 text-sm border-t border-l border-r transition-colors ${
-              activeTab === 'description' ?
-              'bg-white text-blue-600 font-semibold border-b-white' :
-              'bg-gray-50 text-gray-600 border-b hover:bg-gray-100'
-            }`}
+            className={`px-5 py-3 text-sm border-t border-l border-r transition-colors ${activeTab === 'description' ?
+                'bg-white text-blue-600 font-semibold border-b-white' :
+                'bg-gray-50 text-gray-600 border-b hover:bg-gray-100'
+              }`}
           >
             Description
           </button>
           <button
             onClick={() => setActiveTab('reviews')}
-            className={`px-5 py-3 text-sm border-t border-r transition-colors ${
-              activeTab === 'reviews' ?
-              'bg-white text-blue-600 font-semibold border-b-white' :
-              'bg-gray-50 text-gray-600 border-b hover:bg-gray-100'
-            }`}
+            className={`px-5 py-3 text-sm border-t border-r transition-colors ${activeTab === 'reviews' ?
+                'bg-white text-blue-600 font-semibold border-b-white' :
+                'bg-gray-50 text-gray-600 border-b hover:bg-gray-100'
+              }`}
           >
             Reviews (122)
           </button>

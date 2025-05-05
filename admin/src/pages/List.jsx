@@ -56,18 +56,47 @@ const List = ({ token }) => {
   };
 
   const handleEdit = (product) => {
-    setEditProduct(product);
+    // Make sure we initialize inventory as an object if it doesn't exist
+    const productToEdit = {
+      ...product,
+      inventory: product.inventory || {}
+    };
+    
+    // Make sure sizes are properly initialized
+    if (Array.isArray(productToEdit.sizes)) {
+      productToEdit.sizes.forEach(size => {
+        if (productToEdit.inventory[size] === undefined) {
+          productToEdit.inventory[size] = 0;
+        }
+      });
+    } else {
+      productToEdit.sizes = [];
+    }
+    
+    setEditProduct(productToEdit);
   };
 
   const saveEdit = async () => {
     try {
+      // Prepare inventory data ensuring each size has a stock value
+      const inventory = {};
+      if (Array.isArray(editProduct.sizes)) {
+        editProduct.sizes.forEach(size => {
+          inventory[size] = parseInt(editProduct.inventory[size] || 0, 10);
+        });
+      }
+
+      // Calculate total stock from individual size stocks
+      const totalStock = Object.values(inventory).reduce((sum, qty) => sum + parseInt(qty || 0, 10), 0);
+
       const updatedProduct = {
         id: editProduct._id, // Use the product's ID internally
         name: editProduct.name,
         description: editProduct.description || '',
         price: editProduct.price,
         sizes: JSON.stringify(editProduct.sizes || []),
-        stock: editProduct.stock || 0,
+        stock: totalStock, // Set the total stock based on inventory sum
+        inventory: JSON.stringify(inventory), // Include the size-specific inventory
       };
 
       const response = await axios.post(
@@ -102,6 +131,21 @@ const List = ({ token }) => {
     return sortConfig.direction === 'ascending' ? '↑' : '↓';
   };
 
+  const handleInventoryChange = (size, value) => {
+    if (!editProduct) return;
+    
+    // Convert value to integer and ensure it's not negative
+    const parsedValue = Math.max(0, parseInt(value) || 0);
+    
+    setEditProduct({
+      ...editProduct,
+      inventory: {
+        ...editProduct.inventory,
+        [size]: parsedValue
+      }
+    });
+  };
+
   const sortedProducts = React.useMemo(() => {
     if (!products.length) return [];
 
@@ -112,7 +156,7 @@ const List = ({ token }) => {
       const query = searchQuery.toLowerCase();
       filteredProducts = filteredProducts.filter(item =>
         item.name.toLowerCase().includes(query) ||
-        item.department.toLowerCase().includes(query)
+        item.department?.toLowerCase().includes(query)
       );
     }
 
@@ -138,27 +182,35 @@ const List = ({ token }) => {
   useEffect(() => {
     fetchProducts();
   }, []);
+  
   const availableSizes = ["S", "M", "L", "XL", "XXL"];
 
   const toggleSize = (size) => {
     if (!editProduct) return;
 
     const currentSizes = Array.isArray(editProduct.sizes) ? [...editProduct.sizes] : [];
+    let updatedSizes;
+    let updatedInventory = { ...editProduct.inventory };
 
     if (currentSizes.includes(size)) {
       // Remove size if already selected
-      setEditProduct({
-        ...editProduct,
-        sizes: currentSizes.filter(s => s !== size)
-      });
+      updatedSizes = currentSizes.filter(s => s !== size);
+      // Remove inventory entry for this size
+      delete updatedInventory[size];
     } else {
       // Add size if not selected
-      setEditProduct({
-        ...editProduct,
-        sizes: [...currentSizes, size]
-      });
+      updatedSizes = [...currentSizes, size];
+      // Initialize inventory for this size
+      updatedInventory[size] = 0;
     }
+
+    setEditProduct({
+      ...editProduct,
+      sizes: updatedSizes,
+      inventory: updatedInventory
+    });
   };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
@@ -233,20 +285,6 @@ const List = ({ token }) => {
                   />
                 </div>
 
-                {/* Stock */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Quantity</label>
-                  <input
-                    type="number"
-                    value={editProduct.stock || 0}
-                    onChange={(e) => setEditProduct({ ...editProduct, stock: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Right column */}
-              <div className="space-y-4">
                 {/* Description */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -257,7 +295,10 @@ const List = ({ token }) => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
+              </div>
 
+              {/* Right column */}
+              <div className="space-y-4">
                 {/* Sizes */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -279,6 +320,38 @@ const List = ({ token }) => {
                     ))}
                   </div>
                 </div>
+
+                {/* Inventory Management by Size */}
+                {Array.isArray(editProduct.sizes) && editProduct.sizes.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Inventory Management
+                    </label>
+                    <div className="space-y-2 border border-gray-200 rounded-md p-3 bg-white">
+                      {editProduct.sizes.map(size => (
+                        <div key={`inventory-${size}`} className="flex items-center gap-3">
+                          <span className="w-12 font-medium text-gray-700">{size}:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={editProduct.inventory[size] || 0}
+                            onChange={(e) => handleInventoryChange(size, e.target.value)}
+                            className="w-24 px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <span className="text-xs text-gray-500">items in stock</span>
+                        </div>
+                      ))}
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-gray-700">Total Stock:</span>
+                          <span className="font-bold text-blue-600">
+                            {Object.values(editProduct.inventory || {}).reduce((sum, val) => sum + (parseInt(val) || 0), 0)} items
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -305,6 +378,7 @@ const List = ({ token }) => {
           </div>
         </div>
       )}
+
       {/* Confirm Delete Modal */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -353,13 +427,14 @@ const List = ({ token }) => {
               >
                 Price {getSortIcon('price')}
               </th>
+              <th className="py-3 px-4 text-center font-medium text-gray-700">Stock</th>
               <th className="py-3 px-4 text-center font-medium text-gray-700">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan="5" className="py-16 text-center text-gray-500">
+                <td colSpan="6" className="py-16 text-center text-gray-500">
                   Loading...
                 </td>
               </tr>
@@ -376,6 +451,23 @@ const List = ({ token }) => {
                   <td className="py-3 px-4">{product.name}</td>
                   <td className="py-3 px-4">{product.department}</td>
                   <td className="py-3 px-4">{currency}{product.price}</td>
+                  <td className="py-3 px-4 text-center">
+                    {/* Display stock by size if available */}
+                    {Array.isArray(product.sizes) && product.sizes.length > 0 && product.inventory ? (
+                      <div className="flex flex-col items-center">
+                        <span className="font-bold text-gray-700">{product.stock || 0} total</span>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {product.sizes.map(size => (
+                            <div key={`stock-${product._id}-${size}`}>
+                              {size}: {product.inventory[size] || 0}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      product.stock || 0
+                    )}
+                  </td>
                   <td className="py-3 px-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button
@@ -396,7 +488,7 @@ const List = ({ token }) => {
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="py-16 text-center text-gray-500">
+                <td colSpan="6" className="py-16 text-center text-gray-500">
                   No products found.
                 </td>
               </tr>

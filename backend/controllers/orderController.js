@@ -6,11 +6,13 @@ import { sendOrderUpdate } from "../server.js";
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { io } from '../server.js';    
-
-
+import mongoose from "mongoose";
 dotenv.config();
 
 const placeOrder = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
         const { userId, firstName, lastName, phone, items, amount, department, paymentMethod, program } = req.body;
 
@@ -19,21 +21,55 @@ const placeOrder = async (req, res) => {
             return res.status(400).json({ success: false, message: "All fields are required" });
         }
 
-        // Reduce stock for each item in the order
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ success: false, message: "Items must be a non-empty array" });
+        }
+
+        // Validate each item
         for (const item of items) {
-            const product = await productModel.findById(item._id); // Find the product by ID
+            if (!item._id || !item.size || !item.quantity) {
+                return res.status(400).json({ success: false, message: "Each item must have _id, size, and quantity" });
+            }
+        }
+
+        // First phase: Check all products have sufficient stock
+        for (const item of items) {
+            const product = await productModel.findById(item._id).session(session); // Use the session
             if (!product) {
-                return res.status(404).json({ success: false, message: `Product with ID ${item._id} not found` });
+                throw new Error(`Product with ID ${item._id} not found`);
             }
 
-            // Check if the product has enough stock
-            if (product.stock < item.quantity) {
-                return res.status(400).json({ success: false, message: `Not enough stock for product: ${product.name}` });
+            // Parse inventory if it's a string
+            if (typeof product.inventory === 'string') {
+                try {
+                    product.inventory = JSON.parse(product.inventory);
+                } catch (error) {
+                    throw new Error(`Invalid inventory format for product ${product.name}`);
+                }
             }
 
-            // Reduce the product stock
-            product.stock -= item.quantity;
-            await product.save();
+            const currentStock = parseInt(product.inventory[item.size] || 0, 10);
+            if (currentStock < item.quantity) {
+                throw new Error(`Not enough stock for ${product.name}, size: ${item.size}. Only ${currentStock} available.`);
+            }
+        }
+
+        // Second phase: Reduce stock for each product
+        for (const item of items) {
+            const result = await productModel.updateOne(
+                { _id: item._id, [`inventory.${item.size}`]: { $gte: item.quantity } }, // Ensure sufficient stock
+                {
+                    $inc: {
+                        [`inventory.${item.size}`]: -item.quantity, // Reduce stock for the specific size
+                        stock: -item.quantity,                     // Reduce total stock
+                    },
+                },
+                { session } // Use the transaction session
+            );
+
+            if (result.modifiedCount === 0) {
+                throw new Error(`Failed to update stock for product ID ${item._id}, size ${item.size}`);
+            }
         }
 
         // Create a new order
@@ -47,24 +83,30 @@ const placeOrder = async (req, res) => {
             department,
             paymentMethod,
             program,
-            payment: false,
-            status: 'Order Placed', // Set initial status
+            payment: paymentMethod === 'gcash', // Mark paid if using GCash
+            status: 'Order Placed',
             date: Date.now(),
         });
 
-        // Save the order to the database
-        await newOrder.save();
+        await newOrder.save({ session }); // Save within the transaction
+
+        // Clear the user's cart
+        await userModel.findByIdAndUpdate(userId, { cartData: {} }, { session });
+
+        // Commit the transaction
+        await session.commitTransaction();
+        session.endSession();
 
         // Emit the new order to all connected admin clients
         io.emit('newOrderPlaced', newOrder);
 
-        // Optionally, clear the user's cart after placing the order
-        await userModel.findByIdAndUpdate(userId, { cartData: {} });
-
         res.status(201).json({ success: true, message: "Order placed successfully", order: newOrder });
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+
         console.error("Error placing order:", error);
-        res.status(500).json({ success: false, message: "Internal server error" });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
