@@ -18,12 +18,9 @@ const server = http.createServer(app);
 
 // CORS configuration
 const corsOptions = {
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'https://uniform-xpress-frontend.vercel.app',
-    'https://uniformxpress-backend.vercel.app',
-  ],
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://uniform-xpress-frontend.vercel.app', 'https://uniformxpress-backend.vercel.app']
+    : '*', // Allow all origins in development
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
 };
