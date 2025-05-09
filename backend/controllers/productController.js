@@ -3,70 +3,79 @@ import productModel from "../models/productModel.js";
 
 // function for addProducts
 const addProduct = async (req, res) => {
-  try {
-      const { name, description, price, category, subCategory, sizes, department, bestseller, stock, program, inventory: reqInventory } = req.body;
+    try {
+        const {
+            name,
+            description,
+            price,
+            category,
+            subCategory,
+            sizes,
+            department,
+            bestseller,
+            stock,
+            program
+        } = req.body;
 
-      const image1 = req.files?.image1?.[0] || null;
-      const image2 = req.files?.image2?.[0] || null;
-      const image3 = req.files?.image3?.[0] || null;
-      const image4 = req.files?.image4?.[0] || null;
+        const image1 = req.files?.image1?.[0] || null;
+        const image2 = req.files?.image2?.[0] || null;
+        const image3 = req.files?.image3?.[0] || null;
+        const image4 = req.files?.image4?.[0] || null;
 
-      const images = [image1, image2, image3, image4].filter((item) => item !== null);
+        const images = [image1, image2, image3, image4].filter(item => item !== null);
 
-      let imagesUrl = await Promise.all(
-          images.map(async (item) => {
-              let result = await cloudinary.uploader.upload(item.path, { resource_type: "image" });
-              return result.secure_url;
-          })
-      );
+        const imagesUrl = await Promise.all(
+            images.map(async item => {
+                const result = await cloudinary.uploader.upload(item.path, { resource_type: "image" });
+                return result.secure_url;
+            })
+        );
 
-      // Parse sizes
-      let parsedSizes = [];
-      if (typeof sizes === 'string') {
-          try {
-              parsedSizes = JSON.parse(sizes);
-          } catch (error) {
-              console.error("Error parsing sizes:", error);
-              parsedSizes = [];
-          }
-      }
+        // Parse sizes
+        let parsedSizes = [];
+        if (typeof sizes === "string") {
+            try {
+                parsedSizes = JSON.parse(sizes);
+            } catch (err) {
+                console.error("Invalid sizes JSON:", err);
+            }
+        } else if (Array.isArray(sizes)) {
+            parsedSizes = sizes;
+        }
 
-      // Initialize inventory
-      let inventory = reqInventory || {};
-      if (Object.keys(inventory).length === 0 && Array.isArray(parsedSizes)) {
-          parsedSizes.forEach(size => {
-              inventory[size] = Number(stock) || 0; // Default stock for each size
-          });
-      }
+        
+        let inventory = {};
+        parsedSizes.forEach(size => {
+            inventory[size] = Number(stock) || 0; 
+        });
 
-      console.log("Final Inventory:", inventory); // Log the final inventory
+        const productData = {
+            name,
+            description,
+            price: Number(price),
+            category,
+            subCategory,
+            sizes: parsedSizes,
+            image: imagesUrl,
+            date: Date.now(),
+            department,
+            program,
+            inventory, // <- now correctly added
+            bestseller: bestseller === "true" || bestseller === true,
+            stock: Number(stock),
+        };
 
-      const productData = {
-          name,
-          description,
-          price: Number(price),
-          category,
-          subCategory,
-          sizes: parsedSizes,
-          image: imagesUrl,
-          date: Date.now(),
-          department,
-          program,
-          inventory,
-          bestseller: bestseller === "true" || bestseller === true ? true : false,
-          stock: Number(stock),
-      };
+        console.log("Product Data:", productData);
+        const product = new productModel(productData);
+        await product.save();
 
-      console.log("Product Data:", productData); // Log the product data
-      const product = new productModel(productData);
-      await product.save();
-
-      res.json({ success: true, message: "Product Added" });
-  } catch (error) {
-      console.error("Error adding product:", error);
-      res.json({ success: false, message: error.message });
-  }
+        res.json({ success: true, message: "Product Added" });
+    } catch (error) {
+        console.log("Error adding product:", error);
+        res.json({ success: false, message: error.message });
+    }
 };
+
 
 // function for listProducts
 const listProducts = async (req, res) => {

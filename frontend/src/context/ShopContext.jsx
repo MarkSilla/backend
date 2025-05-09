@@ -234,64 +234,64 @@ const ShopContextProvider = (props) => {
   const reduceStock = async (productId, size, quantity) => {
     console.log("Calling reduceStock for:", { productId, size, quantity });
     if (!token || !backendUrl) {
-        toast.error("Authentication required");
-        return { success: false, message: "Authentication required" };
+      toast.error("Authentication required");
+      return { success: false, message: "Authentication required" };
     }
-
+  
     try {
-        const res = await axios.post(
-            `${backendUrl}/api/product/update-stock`,
-            { productId, size, quantity },
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        console.log("API Response for reduceStock:", res.data);
-
-        if (res.data.success) {
-            // Fetch updated products after reducing stock
-            const updatedProducts = await axios.get(`${backendUrl}/api/product/list`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            setProducts(updatedProducts.data.products);
-
-            return { success: true };
-        } else {
-            toast.error(res.data.message || "Failed to update stock");
-            return { success: false, message: res.data.message };
-        }
-    } catch (error) {
-        console.error("Error in reduceStock:", error.message);
-        return { success: false, message: error.message };
-    }
-};
-  // Cart handlers
-  const addToCart = async (itemId, size) => {
-    if (!size) return toast.error("Please select a size");
-
-    // Check if we have enough stock before adding to cart
-    if (!checkStockAvailability(itemId, size)) {
-      return toast.error("Not enough stock available for this size");
-    }
-
-    const cartCopy = structuredClone(cartItems);
-    cartCopy[itemId] = cartCopy[itemId] || {};
-    cartCopy[itemId][size] = (cartCopy[itemId][size] || 0) + 1;
-
-    setCartItems(cartCopy);
-
-    if (token && backendUrl) {
-      try {
-        await axios.post(
-          `${backendUrl}/api/cart/add`,
-          { itemId, size },
-          { headers: { token } }
-        );
-      } catch (error) {
-        const msg = error.response?.data?.message || error.message;
-        toast.error(msg);
+      const res = await axios.post(
+        `${backendUrl}/api/product/update-stock`,
+        { productId, size, quantity },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+  
+      console.log("API Response for reduceStock:", res.data);
+  
+      if (res.data.success) {
+        // Fetch updated products after reducing stock
+        await getProductsData(); // Refresh product data here
+        return { success: true };
+      } else {
+        toast.error(res.data.message || "Failed to update stock");
+        return { success: false, message: res.data.message };
       }
+    } catch (error) {
+      console.error("Error in reduceStock:", error.message);
+      return { success: false, message: error.message };
     }
   };
+
+  // Cart handlers
+  const addToCart = async (itemId, size) => {
+  if (!size) return toast.error("Please select a size");
+
+  // Check if we have enough stock before adding to cart
+  if (!checkStockAvailability(itemId, size)) {
+    return toast.error("Not enough stock available for this size");
+  }
+
+  const cartCopy = structuredClone(cartItems);
+  cartCopy[itemId] = cartCopy[itemId] || {};
+  cartCopy[itemId][size] = (cartCopy[itemId][size] || 0) + 1;
+
+  setCartItems(cartCopy);
+
+  if (token && backendUrl) {
+    try {
+      await axios.post(
+        `${backendUrl}/api/cart/add`,
+        { itemId, size },
+        { headers: { token } }
+      );
+
+      // Fetch updated product data after adding to cart
+      await getProductsData(); // Refresh product data here
+    } catch (error) {
+      const msg = error.response?.data?.message || error.message;
+      toast.error(msg);
+    }
+  }
+};
 
   const updateQuantity = async (itemId, size, quantity) => {
     const product = products.find(p => p._id === itemId);
